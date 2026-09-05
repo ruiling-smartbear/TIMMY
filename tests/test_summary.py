@@ -1,0 +1,46 @@
+from __future__ import annotations
+
+from music_eval.models import EvaluationResult, Finding
+from music_eval.summary import grouped_summary
+
+
+def _result(identifier, status, genre, rms, findings=()):
+    return EvaluationResult(
+        id=identifier,
+        audio=f"{identifier}.wav",
+        status=status,
+        labels={"genre": (genre,), "mood": ("bright",)},
+        metrics={
+            "integrity": {
+                "duration_seconds": 16.0,
+                "rms_dbfs": rms,
+                "silent_window_ratio": 0.0,
+                "longest_dropout_seconds": 0.0,
+            }
+        },
+        findings=list(findings),
+    )
+
+
+def test_grouped_summary_keeps_genres_separate():
+    results = [
+        _result("j1", "pass", "j-pop", -18.0),
+        _result(
+            "j2",
+            "fail",
+            "j-pop",
+            -22.0,
+            [Finding("duration_mismatch", "failure", "too short", "integrity")],
+        ),
+        _result("a1", "pass", "ambient", -30.0),
+    ]
+
+    groups = grouped_summary(results)
+
+    assert groups["genre"]["j-pop"]["total"] == 2
+    assert groups["genre"]["j-pop"]["pass_rate"] == 0.5
+    assert groups["genre"]["j-pop"]["mean_rms_dbfs"] == -20.0
+    assert groups["genre"]["ambient"]["pass_rate"] == 1.0
+    assert groups["genre"]["j-pop"]["finding_counts"] == {
+        "integrity:duration_mismatch": 1
+    }

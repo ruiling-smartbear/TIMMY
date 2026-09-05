@@ -1,0 +1,69 @@
+# Architecture
+
+`music-eval` separates orchestration, metrics, policy, and presentation.
+
+```text
+JSONL manifest
+    │
+    ├── candidate/reference WAV decoding
+    │
+    ├── metric plugins
+    │     ├── integrity
+    │     ├── pairwise
+    │     └── external: CLAP, MuQ, FAD, ...
+    │
+    ├── explicit expectation gates
+    │
+    ├── per-sample results
+    │
+    ├── arbitrary label-dimension aggregation
+    │
+    └── JSON / Markdown / HTML reports
+```
+
+## Core boundary
+
+The core owns strict manifest parsing, PCM WAV decoding, plugin discovery and
+isolation, finding severity, grouping, exit policy, and report schemas. It does
+not own model serving, checkpoint downloads, large embedding models, or an
+overall music-quality score. Those belong in optional adapters and plugins.
+
+## Evidence and policy
+
+A metric reports evidence. An expectation turns selected evidence into a gate.
+Finding a one-second silent interval is a warning by default because silence
+can be intentional. A manifest containing `"max_dropout_seconds": 0.5` makes
+that observation a failure for that specific benchmark contract.
+
+This division prevents a hidden global threshold from declaring ambient music
+invalid while still allowing a serving integration to guard against known
+dropout regressions.
+
+## Metric namespaces
+
+Every plugin owns one namespace in `result.metrics`:
+
+```json
+{
+  "metrics": {
+    "integrity": {"duration_seconds": 16.0},
+    "pairwise": {"reference_pcm_exact": true},
+    "clap": {"positive_margin": 0.23}
+  }
+}
+```
+
+Namespacing prevents unrelated plugins from overwriting fields. Findings also
+carry their plugin source.
+
+## Failure isolation
+
+A candidate or declared reference that cannot be decoded is a core failure. A
+metric-plugin exception becomes an attributed `plugin_error` result, allowing a
+large experiment to finish while keeping the process exit code nonzero.
+
+## Versioning
+
+The JSON report contains `schema_version`. Backward-incompatible report changes
+must increment it. Manifest parsing rejects unknown fields so misspelled policy
+keys cannot silently disable a gate.
