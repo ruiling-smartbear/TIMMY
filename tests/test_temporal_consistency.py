@@ -80,12 +80,16 @@ def test_silent_opening_window_has_undefined_similarity_instead_of_maximum_drift
 
     assert metrics["first_to_last"]["spectral_similarity"] is None
     assert metrics["transitions"][0]["spectral_similarity"] is None
+    # The onset window (half silent) is comparable but not identical to the tone
+    # windows; steady tone windows match each other.
+    onset = metrics["transitions"][1]["spectral_similarity"]
+    assert onset is not None and 0.0 < onset < 0.99
     assert all(
-        transition["spectral_similarity"] is not None
-        for transition in metrics["transitions"][1:]
+        transition["spectral_similarity"] > 0.99
+        for transition in metrics["transitions"][2:]
     )
-    assert metrics["transition_summary"]["spectral_similarity"]["minimum"] > 0.5
-    assert metrics["nonlocal_repetition"]["similarity"]["minimum"] > 0.5
+    assert metrics["transition_summary"]["spectral_similarity"]["maximum"] > 0.99
+    assert metrics["nonlocal_repetition"]["similarity"]["maximum"] > 0.99
     # Pairs (0,8), (0,9), (0,10) touch the silent window and are skipped.
     assert metrics["nonlocal_repetition"]["pair_count"] == 3
     assert metrics["nonlocal_repetition"]["comparable_window_count"] == 4
@@ -179,3 +183,23 @@ def test_silent_window_level_uses_the_shared_dbfs_floor():
     metrics = _evaluate(samples)
 
     assert metrics["windows"][0]["rms_dbfs"] == -120.0
+
+
+def test_profile_averages_bands_so_the_same_texture_matches_itself():
+    """Two windows of the same noise texture must look alike; sampling single FFT
+    bins made independent draws of the same texture nearly orthogonal."""
+    rng = np.random.default_rng(20260906)
+    sample_rate = 4000
+    taper = np.hanning(2 * sample_rate)
+
+    def brown() -> np.ndarray:
+        walk = np.cumsum(rng.normal(size=2 * sample_rate))
+        return 0.1 * walk / np.std(walk)
+
+    first = _spectral_features(brown(), sample_rate, taper)[1]
+    second = _spectral_features(brown(), sample_rate, taper)[1]
+    tone = _spectral_features(_tone(220, 2, sample_rate), sample_rate, taper)[1]
+
+    assert _cosine(first, second) > 0.95
+    assert _cosine(first, tone) < 0.5
+    assert np.isclose(np.linalg.norm(first), 1.0)

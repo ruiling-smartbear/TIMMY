@@ -4,14 +4,43 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "music-eval"
-version = "0.7.0"
+version = "0.8.0"
 description = "Reproducible, explainable evaluation for generated music outputs"
 readme = "README.md"
 requires-python = ">=3.10"
 license = "Apache-2.0"
 license-files = ["LICENSE"]
 authors = [{ name = "Ruilin Gao" }]
+keywords = [
+  "music",
+  "audio",
+  "evaluation",
+  "generative-music",
+  "listening-test",
+  "audio-quality",
+]
+classifiers = [
+  "Development Status :: 4 - Beta",
+  "Intended Audience :: Science/Research",
+  "Intended Audience :: Developers",
+  "License :: OSI Approved :: Apache Software License",
+  "Operating System :: OS Independent",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3.10",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Programming Language :: Python :: 3.13",
+  "Topic :: Multimedia :: Sound/Audio :: Analysis",
+  "Topic :: Scientific/Engineering :: Artificial Intelligence",
+  "Typing :: Typed",
+]
 dependencies = ["numpy>=1.24"]
+
+[project.urls]
+Homepage = "https://github.com/ruiling-smartbear/TIMMY"
+Repository = "https://github.com/ruiling-smartbear/TIMMY"
+Issues = "https://github.com/ruiling-smartbear/TIMMY/issues"
+Changelog = "https://github.com/ruiling-smartbear/TIMMY/blob/main/CHANGELOG.md"
 
 [project.optional-dependencies]
 audiobox = ["audiobox_aesthetics>=0.0.4"]

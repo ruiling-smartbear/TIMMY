@@ -14,6 +14,9 @@ WINDOW_SECONDS = 2.0
 HOP_SECONDS = 1.0
 NONLOCAL_SECONDS = 8.0
 PROFILE_BINS = 64
+# Band power more than this far below the window's loudest band is clamped, so
+# the profile describes spectral shape rather than the numerical noise floor.
+PROFILE_RANGE_DB = 80.0
 NEAR_DUPLICATE_SIMILARITY = 0.995
 EPSILON = 1e-12
 
@@ -82,14 +85,22 @@ def _spectral_features(
             / (np.mean(positive_power) + EPSILON)
         )
 
+        # Mean power in PROFILE_BINS log-spaced bands between 20 Hz and 20 kHz. Averaging
+        # a band is a far lower-variance estimate than sampling single FFT bins.
         upper_hz = min(float(sample_rate) / 2.0, 20000.0)
-        profile_frequencies = np.geomspace(20.0, max(20.0, upper_hz), PROFILE_BINS)
-        log_power = np.log10(power + EPSILON)
-        profile = np.interp(profile_frequencies, frequencies, log_power)
+        band_edges = np.geomspace(20.0, max(20.0, upper_hz), PROFILE_BINS + 1)
+        edges = np.searchsorted(frequencies, band_edges)
+        band_power = np.array(
+            [
+                power[low:high].mean() if high > low else 0.0
+                for low, high in zip(edges[:-1], edges[1:], strict=True)
+            ]
+        )
+        floor = float(band_power.max()) * 10.0 ** (-PROFILE_RANGE_DB / 10.0)
+        profile = np.log10(np.maximum(band_power, floor) + EPSILON)
         profile -= float(np.mean(profile))
         norm = float(np.linalg.norm(profile))
-        if norm > EPSILON:
-            profile /= norm
+        profile = profile / norm if norm > EPSILON else np.zeros(PROFILE_BINS, dtype=np.float64)
 
     signs = np.signbit(samples)
     zero_crossing_rate = float(np.mean(signs[1:] != signs[:-1]))
@@ -238,6 +249,7 @@ class TemporalConsistencyMetric:
                     "window_seconds": self._window_seconds,
                     "hop_seconds": self._hop_seconds,
                     "profile_bins": PROFILE_BINS,
+                    "profile_range_db": PROFILE_RANGE_DB,
                     "nonlocal_minimum_separation_seconds": self._nonlocal_seconds,
                     "near_duplicate_similarity": self._near_duplicate_similarity,
                 },

@@ -47,9 +47,21 @@ def test_package_versions_stay_in_sync():
     assert f"version: {music_eval.__version__}" in citation
 
 
-def test_timmy_logo_is_horizontal_and_has_real_alpha():
+def _png_chunk_types(data: bytes) -> list[bytes]:
+    types, offset = [], 8
+    while offset + 8 <= len(data):
+        length, chunk_type = struct.unpack(">I4s", data[offset : offset + 8])
+        types.append(chunk_type)
+        offset += 12 + length
+    return types
+
+
+def test_timmy_logo_is_horizontal_small_and_has_real_alpha():
     logo = (ROOT / "assets/timmy-logo-horizontal.png").read_bytes()
     assert logo[:8] == b"\x89PNG\r\n\x1a\n"
     width, height, _depth, color_type = struct.unpack(">IIBB", logo[16:26])
     assert width >= height * 2
-    assert color_type in {4, 6}, "logo must use a PNG color type with alpha"
+    # Truecolor/gray with alpha, or a palette with a transparency chunk.
+    has_alpha = color_type in {4, 6} or (color_type == 3 and b"tRNS" in _png_chunk_types(logo))
+    assert has_alpha, "logo must carry alpha so it sits on light and dark backgrounds"
+    assert len(logo) < 200_000, "keep the logo small; it is downloaded with every clone"
