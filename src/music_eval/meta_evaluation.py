@@ -8,6 +8,7 @@ from pathlib import Path
 from typing import Any, Literal, cast
 
 import numpy as np
+from numpy.typing import NDArray
 
 Direction = Literal["increase", "decrease"]
 
@@ -87,7 +88,9 @@ def load_ordering_manifest(path: Path) -> list[OrderingObservation]:
     return observations
 
 
-def _kendall_tau_b(left: np.ndarray, right: np.ndarray) -> float | None:
+def _kendall_tau_b(
+    left: NDArray[np.float64], right: NDArray[np.float64]
+) -> float | None:
     concordant = 0
     discordant = 0
     left_ties = 0
