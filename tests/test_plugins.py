@@ -45,7 +45,12 @@ def test_plugin_exception_becomes_attributed_failure(tmp_path, write_wav):
 
 
 def test_builtin_plugins_are_discoverable():
-    assert {"audiobox_aesthetics", "integrity", "pairwise"} <= set(available_plugins())
+    assert {
+        "audiobox_aesthetics",
+        "clap_alignment",
+        "integrity",
+        "pairwise",
+    } <= set(available_plugins())
 
 
 def test_duplicate_plugin_names_are_rejected(tmp_path, write_wav):

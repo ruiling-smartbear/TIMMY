@@ -15,6 +15,7 @@ dependencies = ["numpy>=1.24"]
 
 [project.optional-dependencies]
 audiobox = ["audiobox_aesthetics>=0.0.4"]
+clap = ["soxr>=0.5", "torch>=2.2", "transformers>=4.57"]
 test = ["mypy>=1.13", "pytest>=8", "ruff>=0.8"]
 
 [project.scripts]

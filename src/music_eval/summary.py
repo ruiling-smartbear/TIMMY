@@ -78,6 +78,25 @@ def grouped_summary(
                         values_for_axis.append(float(value_for_axis))
                 if values_for_axis:
                     group[f"mean_audiobox_{axis.lower()}"] = fmean(values_for_axis)
+            for source_name, output_name in (
+                ("positive_similarity", "mean_clap_positive_similarity"),
+                ("margin", "mean_clap_margin"),
+            ):
+                clap_values = []
+                for result in members:
+                    alignment = result.metrics.get("clap_alignment")
+                    if not isinstance(alignment, dict):
+                        continue
+                    track = alignment.get("track")
+                    if not isinstance(track, dict):
+                        continue
+                    clap_value = track.get(source_name)
+                    if isinstance(clap_value, (int, float)) and not isinstance(
+                        clap_value, bool
+                    ):
+                        clap_values.append(float(clap_value))
+                if clap_values:
+                    group[output_name] = fmean(clap_values)
             groups[dimension][value] = group
     return groups
 

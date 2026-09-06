@@ -7,8 +7,9 @@ separate evidence instead of hiding them behind one universal score.
 
 The current release is a lightweight, offline foundation. It validates PCM WAV
 outputs, compares deterministic candidate/reference pairs, stratifies results
-by musical attributes, and offers an optional Meta Audiobox Aesthetics plugin
-alongside a plugin boundary for future CLAP, MuQ, FAD, and serving integrations.
+by musical attributes, and offers optional Meta Audiobox Aesthetics and CLAP
+alignment plugins alongside a boundary for future MuQ, FAD, and serving
+integrations.
 
 ## Principles
 
@@ -123,6 +124,25 @@ duration-weighted track score, it preserves every window score, the 10th
 percentile, minimum, and worst-window location. These learned estimates are
 diagnostic evidence, not pass/fail policy or a universal music-quality score.
 
+### `clap_alignment` (optional)
+
+CLAP measures whether the audio matches its positive prompt. When the manifest
+provides `negative_prompts`, this plugin additionally reports the best negative,
+positive-minus-negative margin, and positive rank:
+
+```bash
+python -m pip install -e '.[clap]'
+music-eval evaluate manifest.jsonl \
+  --metrics integrity,clap_alignment \
+  --output report
+```
+
+It uses `laion/clap-htsat-unfused`, high-quality resampling to 48 kHz mono, and
+non-overlapping 10-second windows. Reports retain track-level duration-weighted
+cosine similarities and every window so a strong opening cannot conceal later
+prompt drift. Raw similarity has no universal pass threshold; hard-negative
+margin and within-case rank are the more interpretable comparisons.
+
 ## Grouped evidence
 
 Labels are multi-valued. One sample may belong to `genre=synthwave`,
@@ -154,7 +174,7 @@ exit code proves the gate catches the injected defect.
 ## Roadmap
 
 1. Aligned serving-fidelity and repeatability adapters.
-2. CLAP contrastive prompt alignment with hard negatives.
+2. Independent music-text alignment with MuQ-MuLan.
 3. Additional per-sample learned quality metrics such as MuQ-Eval.
 4. Corpus-level distribution metrics such as FAD/MAD.
 5. A/B listening studies and model-serving adapters.

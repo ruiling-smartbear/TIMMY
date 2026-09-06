@@ -31,6 +31,14 @@ def _aesthetic(result: EvaluationResult, axis: str, default: Any = "—") -> Any
     return scores.get(axis, default) if isinstance(scores, dict) else default
 
 
+def _clap(result: EvaluationResult, key: str, default: Any = "—") -> Any:
+    metrics = result.metrics.get("clap_alignment")
+    if not isinstance(metrics, dict):
+        return default
+    track = metrics.get("track")
+    return track.get(key, default) if isinstance(track, dict) else default
+
+
 def write_markdown_report(results: list[EvaluationResult], path: Path) -> None:
     payload = report_payload(results)
     summary = payload["summary"]
@@ -41,14 +49,18 @@ def write_markdown_report(results: list[EvaluationResult], path: Path) -> None:
     )
     aesthetic_headers = "".join(f" {axis} |" for axis in aesthetic_axes)
     aesthetic_rules = "".join("---:|" for _axis in aesthetic_axes)
+    has_clap = any("clap_alignment" in result.metrics for result in results)
+    clap_headers = " CLAP+ | Margin | Rank |" if has_clap else ""
+    clap_rules = "---:|---:|---:|" if has_clap else ""
     lines = [
         "# Music evaluation report",
         "",
         f"Total: **{summary['total']}** · Passed: **{summary['passed']}** · "
         f"Warnings: **{summary['warnings']}** · Failed: **{summary['failed']}**",
         "",
-        f"| ID | Genre | Status | Duration | RMS | Longest dropout |{aesthetic_headers} Findings |",
-        f"|---|---|---:|---:|---:|---:|{aesthetic_rules}---|",
+        f"| ID | Genre | Status | Duration | RMS | Longest dropout |"
+        f"{aesthetic_headers}{clap_headers} Findings |",
+        f"|---|---|---:|---:|---:|---:|{aesthetic_rules}{clap_rules}---|",
     ]
     for result in results:
         duration = _integrity(result, "duration_seconds")
@@ -63,12 +75,23 @@ def write_markdown_report(results: list[EvaluationResult], path: Path) -> None:
             for axis in aesthetic_axes
             for value in [_aesthetic(result, axis)]
         )
+        if has_clap:
+            similarity = _clap(result, "positive_similarity")
+            margin = _clap(result, "margin")
+            rank = _clap(result, "positive_rank")
+            clap_cells = (
+                f" {similarity if similarity == '—' else f'{float(similarity):.3f}'} |"
+                f" {margin if margin in ('—', None) else f'{float(margin):.3f}'} |"
+                f" {rank} |"
+            )
+        else:
+            clap_cells = ""
         lines.append(
             f"| {_cell(result.id)} | {_cell(genres)} | {result.status} | "
             f"{duration if duration == '—' else f'{float(duration):.3f}s'} | "
             f"{rms if rms == '—' else f'{float(rms):.2f} dBFS'} | "
             f"{longest if longest == '—' else f'{float(longest):.3f}s'} |"
-            f"{aesthetic_cells} "
+            f"{aesthetic_cells}{clap_cells} "
             f"{_cell(findings)} |"
         )
 
@@ -111,6 +134,8 @@ def write_html_report(results: list[EvaluationResult], path: Path) -> None:
         else ()
     )
     aesthetic_headers = "".join(f"<th>{axis}</th>" for axis in aesthetic_axes)
+    has_clap = any("clap_alignment" in result.metrics for result in results)
+    clap_headers = "<th>CLAP+</th><th>Margin</th><th>Rank</th>" if has_clap else ""
     sample_rows = []
     for result in results:
         findings = ", ".join(
@@ -119,6 +144,13 @@ def write_html_report(results: list[EvaluationResult], path: Path) -> None:
         aesthetic_cells = "".join(
             f"<td>{_html_number(_aesthetic(result, axis), '')}</td>"
             for axis in aesthetic_axes
+        )
+        clap_cells = (
+            f"<td>{_html_number(_clap(result, 'positive_similarity'), '')}</td>"
+            f"<td>{_html_number(_clap(result, 'margin'), '')}</td>"
+            f"<td>{escape(str(_clap(result, 'positive_rank')))}</td>"
+            if has_clap
+            else ""
         )
         sample_rows.append(
             "<tr>"
@@ -129,6 +161,7 @@ def write_html_report(results: list[EvaluationResult], path: Path) -> None:
             f"<td>{_html_number(_integrity(result, 'rms_dbfs'), ' dBFS')}</td>"
             f"<td>{_html_number(_integrity(result, 'longest_dropout_seconds'), 's')}</td>"
             f"{aesthetic_cells}"
+            f"{clap_cells}"
             f"<td>{escape(findings)}</td>"
             "</tr>"
         )
@@ -187,7 +220,7 @@ No universal aesthetic score.</p>
 </div>
 <section><h2>Samples</h2><div class="table-wrap"><table><thead><tr><th>ID</th><th>Genre</th>
 <th>Status</th><th>Duration</th><th>RMS</th><th>Longest dropout</th>
-{aesthetic_headers}<th>Findings</th>
+{aesthetic_headers}{clap_headers}<th>Findings</th>
 </tr></thead><tbody>{''.join(sample_rows)}</tbody></table></div></section>
 {''.join(group_sections)}
 </main></body></html>

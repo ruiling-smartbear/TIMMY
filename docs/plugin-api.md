@@ -50,3 +50,10 @@ until evaluation begins. Install it with `music-eval[audiobox]`. Its output
 records the checkpoint, package version, preprocessing contract, duration-
 weighted CE/CU/PC/PQ track scores, per-axis summaries, and every 10-second
 window. The plugin does not create findings or gates from learned scores.
+
+`clap_alignment` is installed with `music-eval[clap]`. It reads the manifest's
+positive `prompt` and optional `negative_prompts`, then reports per-window and
+duration-weighted cosine similarity, hard-negative margin, and positive rank.
+The implementation records its checkpoint, Transformers version, device, and
+preprocessing contract. Missing prompts and unavailable dependencies are
+attributed plugin failures; low learned scores remain ungated evidence.

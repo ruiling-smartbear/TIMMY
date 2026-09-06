@@ -4,11 +4,13 @@ from importlib.metadata import entry_points
 
 from music_eval.plugins.audiobox_aesthetics import AudioboxAestheticsMetric
 from music_eval.plugins.base import MetricPlugin
+from music_eval.plugins.clap_alignment import ClapAlignmentMetric
 from music_eval.plugins.integrity import IntegrityMetric
 from music_eval.plugins.pairwise import PairwiseFidelityMetric
 
 BUILTINS: dict[str, type[MetricPlugin]] = {
     "audiobox_aesthetics": AudioboxAestheticsMetric,
+    "clap_alignment": ClapAlignmentMetric,
     "integrity": IntegrityMetric,
     "pairwise": PairwiseFidelityMetric,
 }

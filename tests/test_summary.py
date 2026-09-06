@@ -56,3 +56,15 @@ def test_grouped_summary_includes_audiobox_axes():
 
     assert groups["genre"]["j-pop"]["mean_audiobox_ce"] == 7.0
     assert groups["genre"]["j-pop"]["mean_audiobox_pq"] == 8.0
+
+
+def test_grouped_summary_includes_clap_alignment():
+    result = _result("j1", "pass", "j-pop", -18.0)
+    result.metrics["clap_alignment"] = {
+        "track": {"positive_similarity": 0.42, "margin": 0.17}
+    }
+
+    groups = grouped_summary([result])
+
+    assert groups["genre"]["j-pop"]["mean_clap_positive_similarity"] == 0.42
+    assert groups["genre"]["j-pop"]["mean_clap_margin"] == 0.17
