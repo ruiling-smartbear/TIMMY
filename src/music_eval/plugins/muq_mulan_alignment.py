@@ -3,7 +3,6 @@ from __future__ import annotations
 import math
 from collections.abc import Callable, Sequence
 from importlib import import_module
-from importlib.metadata import PackageNotFoundError, version
 from typing import Protocol
 
 import numpy as np
@@ -13,6 +12,7 @@ from music_eval.audio import AudioData
 from music_eval.models import ManifestEntry
 from music_eval.plugins.base import AnalysisConfig, MetricOutput
 from music_eval.plugins.prompt_alignment import evaluate_prompt_alignment
+from music_eval.text import package_version
 
 CHECKPOINT = "OpenMuQ/MuQ-MuLan-large"
 MODEL_SAMPLE_RATE = 24000
@@ -33,12 +33,6 @@ class AlignmentBackend(Protocol):
 
 BackendFactory = Callable[[], AlignmentBackend]
 
-
-def _package_version(distribution: str) -> str:
-    try:
-        return version(distribution)
-    except PackageNotFoundError:
-        return "unknown"
 
 
 class MuQMuLanBackend:
@@ -162,7 +156,7 @@ class MuQMuLanAlignmentMetric:
             batch_windows=self._batch_windows,
             metadata={
                 "checkpoint": CHECKPOINT,
-                "muq_version": _package_version("muq"),
+                "muq_version": package_version("muq"),
                 "device": getattr(backend, "device_name", "unknown"),
                 "weights_license": "CC-BY-NC-4.0",
                 "precision": "float32",

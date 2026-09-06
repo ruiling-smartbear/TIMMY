@@ -7,6 +7,7 @@ from typing import Any
 
 from music_eval.models import EvaluationResult
 from music_eval.summary import report_payload
+from music_eval.text import markdown_cell
 
 
 def write_json_report(results: list[EvaluationResult], path: Path) -> None:
@@ -19,7 +20,7 @@ def write_json_report(results: list[EvaluationResult], path: Path) -> None:
 
 
 def _cell(value: object) -> str:
-    return str(value).replace("|", "\\|").replace("\n", " ")
+    return markdown_cell(value)
 
 
 def _integrity(result: EvaluationResult, key: str, default: Any = "—") -> Any:

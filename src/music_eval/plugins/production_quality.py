@@ -3,15 +3,16 @@ from __future__ import annotations
 import math
 from collections.abc import Callable
 from importlib import import_module
-from importlib.metadata import PackageNotFoundError, version
 from typing import Any, Protocol
 
 import numpy as np
 from numpy.typing import NDArray
 
 from music_eval.audio import AudioData
+from music_eval.metrics import dbfs
 from music_eval.models import ManifestEntry
 from music_eval.plugins.base import AnalysisConfig, MetricOutput
+from music_eval.text import package_version
 
 EPSILON = 1e-12
 TRUE_PEAK_OVERSAMPLE = 4
@@ -43,12 +44,6 @@ class ProductionRuntime(Protocol):
 RuntimeFactory = Callable[[], ProductionRuntime]
 
 
-def _version(distribution: str) -> str:
-    try:
-        return version(distribution)
-    except PackageNotFoundError:
-        return "unknown"
-
 
 class ScipyLoudnessRuntime:
     def __init__(self) -> None:
@@ -59,8 +54,8 @@ class ScipyLoudnessRuntime:
             raise RuntimeError(
                 "production quality metrics are optional; install music-eval[production]"
             ) from error
-        self.pyloudnorm_version = _version("pyloudnorm")
-        self.scipy_version = _version("scipy")
+        self.pyloudnorm_version = package_version("pyloudnorm")
+        self.scipy_version = package_version("scipy")
 
     def integrated_loudness(
         self, samples: NDArray[np.float64], sample_rate: int
@@ -99,7 +94,8 @@ def _create_runtime() -> ProductionRuntime:
 
 
 def _db(value: float) -> float:
-    return 20.0 * math.log10(max(value, EPSILON))
+    # Same floor as the integrity metric, so digital silence reads -120 dB everywhere.
+    return dbfs(value)
 
 
 def _finite_or_none(value: float) -> float | None:

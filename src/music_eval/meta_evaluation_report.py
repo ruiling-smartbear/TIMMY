@@ -6,6 +6,8 @@ import json
 from pathlib import Path
 from typing import Any
 
+from music_eval.text import markdown_cell
+
 
 def _number(value: float | None) -> str:
     return "—" if value is None else f"{value:.3f}"
@@ -28,7 +30,8 @@ def write_meta_evaluation_report(result: dict[str, Any], output_dir: Path) -> No
     for group in result["groups"]:
         pairs = group["ordered_pairs"]
         lines.append(
-            f"| {group['condition']} | {group['metric']} | {group['expected_direction']} | "
+            f"| {markdown_cell(group['condition'])} | {markdown_cell(group['metric'])} | "
+            f"{group['expected_direction']} | "
             f"{len(group['levels'])} | {group['observations']} | "
             f"{_number(group['kendall_tau_b'])} | "
             f"{_number(group['ordered_pair_accuracy'])} | {pairs['tied']} |"

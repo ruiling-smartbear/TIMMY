@@ -8,13 +8,13 @@ import sys
 import tempfile
 from collections.abc import Callable, Mapping
 from importlib import import_module
-from importlib.metadata import PackageNotFoundError, version
 from pathlib import Path
 from typing import Any
 
 from music_eval.audio import AudioData
 from music_eval.models import Finding, ManifestEntry
 from music_eval.plugins.base import AnalysisConfig, MetricOutput
+from music_eval.text import package_version
 
 MUSECP_VERSION = "0.3.0"
 MetricFunction = Callable[[str, str], object]
@@ -70,12 +70,6 @@ def _load_functions() -> dict[str, MetricFunction]:
     functions["structural_form"] = _run_structural_score
     return functions
 
-
-def _package_version() -> str:
-    try:
-        return version("musecpeval")
-    except PackageNotFoundError:
-        return "unknown"
 
 
 def _json_value(value: object, path: str = "result") -> Any:
@@ -152,7 +146,7 @@ class MuseCPPreservationMetric:
                 "available": True,
                 "implementation": "musecpeval",
                 "required_version": MUSECP_VERSION,
-                "package_version": _package_version(),
+                "package_version": package_version("musecpeval"),
                 "original": original_path,
                 "edited": edited_path,
                 "facets": facets,

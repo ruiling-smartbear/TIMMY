@@ -3,7 +3,6 @@ from __future__ import annotations
 import math
 from collections.abc import Callable
 from importlib import import_module
-from importlib.metadata import PackageNotFoundError, version
 from typing import Any
 
 import numpy as np
@@ -12,6 +11,7 @@ from numpy.typing import NDArray
 from music_eval.audio import AudioData
 from music_eval.models import ManifestEntry
 from music_eval.plugins.base import AnalysisConfig, MetricOutput
+from music_eval.text import package_version
 
 AXES = ("CE", "CU", "PC", "PQ")
 CHECKPOINT = "facebook/audiobox-aesthetics"
@@ -41,12 +41,6 @@ def _create_tensor(samples: NDArray[np.float32]) -> Any:
         ) from error
     return torch.from_numpy(samples)
 
-
-def _package_version() -> str:
-    try:
-        return version("audiobox_aesthetics")
-    except PackageNotFoundError:
-        return "unknown"
 
 
 def _validated_scores(prediction: object) -> dict[str, float]:
@@ -165,7 +159,7 @@ class AudioboxAestheticsMetric:
         return MetricOutput(
             metrics={
                 "checkpoint": CHECKPOINT,
-                "package_version": _package_version(),
+                "package_version": package_version("audiobox_aesthetics"),
                 "preprocessing": {
                     "model_sample_rate_hz": 16000,
                     "channels": "mono",

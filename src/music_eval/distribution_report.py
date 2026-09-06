@@ -6,11 +6,13 @@ import json
 from pathlib import Path
 from typing import Any
 
+from music_eval.text import markdown_cell
+
 
 def _row(system: str, metrics: dict[str, Any]) -> str:
     manifold = metrics["manifold"] or {}
     return (
-        f"| {system} | {metrics['candidate_samples']} | "
+        f"| {markdown_cell(system)} | {metrics['candidate_samples']} | "
         f"{metrics['frechet_embedding_distance']:.4f} | "
         f"{metrics['kernel_audio_distance']:.4f} | "
         f"{metrics['candidate_diversity_mean_cosine_distance']:.4f} | "
@@ -32,7 +34,7 @@ def write_distribution_report(result: dict[str, Any], output_dir: Path) -> None:
         f"Embedding: **{result['embedding_model']}** · checkpoint: `{result['checkpoint']}` · "
         f"dimension: **{result['embedding_dimension']}**",
         "",
-        f"Reference system: **{result['reference_system']}**",
+        f"Reference system: **{markdown_cell(result['reference_system'])}**",
         "",
         "> Fréchet embedding distance is not automatically FAD. Its interpretation depends on the "
         "declared embedding model, checkpoint, preprocessing, and corpus protocol.",

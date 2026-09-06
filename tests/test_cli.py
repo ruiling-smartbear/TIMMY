@@ -200,11 +200,11 @@ def test_analyze_listening_study_rejects_public_study_file_as_key(tmp_path, writ
 def test_distribution_cli_writes_reports(tmp_path):
     manifest = tmp_path / "embeddings.jsonl"
     rows = []
-    for system in ("reference", "candidate"):
+    for system in ("reference", "cand|v2"):
         for index, embedding in enumerate(([1.0, 0.0], [0.0, 1.0])):
             rows.append(
                 {
-                    "id": f"{system}-{index}",
+                    "id": f"{index}-{system}",
                     "system": system,
                     "embedding": embedding,
                     "embedding_model": "fixture",
@@ -226,8 +226,9 @@ def test_distribution_cli_writes_reports(tmp_path):
         ]
     ) == 0
     result = json.loads((output / "report.json").read_text())
-    assert result["comparisons"]["candidate"]["frechet_embedding_distance"] == 0
-    assert (output / "report.md").is_file()
+    assert result["comparisons"]["cand|v2"]["frechet_embedding_distance"] == 0
+    # A pipe in a system name must not break the Markdown table.
+    assert "| cand\\|v2 | 2 |" in (output / "report.md").read_text()
     assert (output / "report.html").is_file()
 
 

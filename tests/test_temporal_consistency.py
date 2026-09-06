@@ -170,3 +170,12 @@ def test_vectorized_nonlocal_search_matches_pair_loop_oracle(nonlocal_seconds):
         # The motif windows repeat after the bridge; the bridge windows do not.
         assert 0.0 < actual["near_duplicate_window_ratio"] < 1.0
         assert actual["similarity"]["minimum"] < 0.5 < actual["similarity"]["maximum"]
+
+
+def test_silent_window_level_uses_the_shared_dbfs_floor():
+    """Digital silence reads -120 dBFS here, as in the integrity metric."""
+    samples = np.concatenate((np.zeros(2 * 4000), _tone(220, 4, 4000)))
+
+    metrics = _evaluate(samples)
+
+    assert metrics["windows"][0]["rms_dbfs"] == -120.0

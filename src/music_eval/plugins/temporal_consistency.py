@@ -6,6 +6,7 @@ import numpy as np
 from numpy.typing import NDArray
 
 from music_eval.audio import AudioData
+from music_eval.metrics import dbfs
 from music_eval.models import ManifestEntry
 from music_eval.plugins.base import AnalysisConfig, MetricOutput
 
@@ -18,7 +19,8 @@ EPSILON = 1e-12
 
 
 def _dbfs(rms: float) -> float:
-    return 20.0 * math.log10(max(rms, EPSILON))
+    # Same floor as the integrity metric, so digital silence reads -120 dBFS everywhere.
+    return dbfs(rms)
 
 
 def _window_bounds(frames: int, window_frames: int, hop_frames: int) -> list[tuple[int, int]]:

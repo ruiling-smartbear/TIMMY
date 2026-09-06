@@ -6,6 +6,8 @@ import json
 from pathlib import Path
 from typing import Any
 
+from music_eval.text import markdown_cell
+
 _SEPARATED_NOTE = (
     "* Separated data: the Bradley-Terry maximum-likelihood estimate does not exist "
     "(some system or group of systems never lost or never won), so log strengths are the "
@@ -77,7 +79,7 @@ def write_listening_report(result: dict[str, Any], output_dir: Path) -> None:
                 else f"[{strength_ci[0]:.3f}, {strength_ci[1]:.3f}]"
             )
             lines.append(
-                f"| {rank} | {row['component']} | {row['system']} | "
+                f"| {rank} | {row['component']} | {markdown_cell(row['system'])} | "
                 f"{row['preference_rate']:.1%} {rendered_preference_ci} | "
                 f"{row['log_strength']:.3f} {rendered_strength_ci} | "
                 f"{row['vs_average']:.1%} | {row['comparisons']} |"
@@ -140,7 +142,7 @@ def write_listening_report(result: dict[str, Any], output_dir: Path) -> None:
                 for row in rows:
                     rank = _rank_cell(row)
                     lines.append(
-                        f"| {rank} | {row['system']} | {row['preference_rate']:.1%} | "
+                        f"| {rank} | {markdown_cell(row['system'])} | {row['preference_rate']:.1%} | "
                         f"{row['comparisons']} |"
                     )
                     body.append(
