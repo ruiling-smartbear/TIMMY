@@ -307,6 +307,7 @@ exit code proves the gate catches the injected defect.
 - [Manifest contract](docs/manifest.md)
 - [Metric plugin API](docs/plugin-api.md)
 - [Model support matrix](docs/model-support.md)
+- [Music-theory extraction research](docs/music-theory-research.md)
 - [Blind listening studies](docs/listening-studies.md)
 - [Distribution evaluation](docs/distribution-evaluation.md)
 - [Contributing](CONTRIBUTING.md)
