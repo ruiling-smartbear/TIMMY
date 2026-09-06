@@ -183,6 +183,10 @@ def load_manifest(path: Path) -> list[ManifestEntry]:
                     expectations=_expectations(
                         raw.get("expectations"), line_number, entry_id
                     ),
+                    audio_label=str(raw["audio"]),
+                    reference_label=(
+                        str(raw["reference"]) if raw.get("reference") is not None else None
+                    ),
                 )
             )
     if not entries:

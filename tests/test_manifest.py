@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 
+import numpy as np
 import pytest
 
 from music_eval.manifest import load_manifest
@@ -133,3 +134,21 @@ def test_rejects_invalid_labels(tmp_path):
 
     with pytest.raises(ValueError, match="label 'genre'"):
         load_manifest(manifest)
+
+
+def test_reports_keep_the_manifest_path_spelling(tmp_path, write_wav):
+    from music_eval.evaluator import evaluate_entry
+
+    (tmp_path / "outputs").mkdir()
+    write_wav(tmp_path / "outputs" / "song.wav", np.full(8000, 0.1))
+    write_wav(tmp_path / "ref.wav", np.full(8000, 0.1))
+    manifest = tmp_path / "manifest.jsonl"
+    manifest.write_text('{"id":"song","audio":"outputs/song.wav","reference":"ref.wav"}\n')
+
+    entry = load_manifest(manifest)[0]
+    result = evaluate_entry(entry)
+
+    assert entry.audio == tmp_path / "outputs" / "song.wav"
+    assert result.audio == "outputs/song.wav"
+    assert result.reference == "ref.wav"
+    assert result.status in ("pass", "warning")  # a constant signal reports DC offset

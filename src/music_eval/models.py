@@ -32,6 +32,18 @@ class ManifestEntry:
     reference: Path | None = None
     labels: dict[str, tuple[str, ...]] = field(default_factory=dict)
     expectations: Expectations = field(default_factory=Expectations)
+    # The paths as written in the manifest, so reports stay portable and readable;
+    # ``audio`` and ``reference`` above are the resolved paths used for decoding.
+    audio_label: str | None = None
+    reference_label: str | None = None
+
+    def audio_name(self) -> str:
+        return self.audio_label if self.audio_label is not None else str(self.audio)
+
+    def reference_name(self) -> str | None:
+        if self.reference is None:
+            return None
+        return self.reference_label if self.reference_label is not None else str(self.reference)
 
 
 @dataclass(frozen=True)

@@ -21,8 +21,8 @@ def _status(findings: list[Finding]) -> Status:
 def _failed_result(entry: ManifestEntry, code: str, message: str) -> EvaluationResult:
     return EvaluationResult(
         id=entry.id,
-        audio=str(entry.audio),
-        reference=str(entry.reference) if entry.reference else None,
+        audio=entry.audio_name(),
+        reference=entry.reference_name(),
         status="fail",
         findings=[Finding(code, "failure", message)],
         prompt=entry.prompt,
@@ -96,8 +96,8 @@ def evaluate_entry(
 
     return EvaluationResult(
         id=entry.id,
-        audio=str(entry.audio),
-        reference=str(entry.reference) if entry.reference else None,
+        audio=entry.audio_name(),
+        reference=entry.reference_name(),
         status=_status(findings),
         metrics=metrics,
         findings=findings,
