@@ -28,7 +28,8 @@ repeated source cases. Analysis requires the private key.
 
 ## Criteria
 
-The defaults deliberately remain separate:
+The default set (`--criteria-preset timmy`, also used when nothing is given)
+keeps four questions apart:
 
 - `overall_preference`: which sample the listener would choose overall;
 - `prompt_alignment`: which better realizes the requested content;
@@ -37,6 +38,28 @@ The defaults deliberately remain separate:
 - `production_quality`: which has cleaner, more coherent sound and mix.
 
 A tie is a first-class answer. Forcing a random A/B selection invents evidence.
+
+### Presets from published protocols
+
+Different questions need different criteria, and a criteria set that a paper
+already validated is easier to compare against than a home-made one.
+`init-listening-study --criteria-preset` offers:
+
+| Preset | Criteria | Source | Use it when |
+|---|---|---|---|
+| `timmy` | the four above | this project | prompts and mastering matter as much as the music |
+| `musicprefs` | `fidelity`, `musicality` | Huang et al. 2025, MusicPrefs (arXiv 2503.16669): 2,520 pairwise judgments over seven systems, one preference per axis | you want the protocol that MAD was validated against, or a quick two-axis system comparison |
+| `songeval` | `overall_coherence`, `memorability`, `vocal_naturalness`, `structure_clarity`, `overall_musicality` | Yao et al. 2025, SongEval (arXiv 2505.10793): 2,399 full songs rated by 16 trained annotators | you need to know *why* one system wins on full-length songs with vocals |
+| `songeval-instrumental` | SongEval without `vocal_naturalness` | derived from the above | the same, for instrumental material |
+
+Two differences from the papers are deliberate and recorded in the study
+file. SongEval rated each song in isolation on a 1 to 5 scale; TIMMY keeps its
+five dimensions but asks them pairwise, so the result is a preference per
+dimension, not a MOS. MusicPrefs collected ties and then discarded them;
+TIMMY keeps ties as half-wins. The one-line definition raters see under each
+criterion (`criteria_definitions` in `study.json`) paraphrases the papers'
+descriptions; `--criteria` accepts any custom list, which gets no definition
+unless the name matches a known one.
 
 ## Analysis
 

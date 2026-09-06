@@ -25,6 +25,49 @@ DEFAULT_CRITERIA = (
     "production_quality",
 )
 
+# Criteria sets taken from published listening protocols. The judgment here is
+# always pairwise A/B/tie; SongEval rated songs in isolation on a 1-5 scale, so
+# its dimensions are reused, not its scale.
+CRITERIA_PRESETS: dict[str, tuple[str, ...]] = {
+    "timmy": DEFAULT_CRITERIA,
+    # Huang et al. 2025 (MAD / MusicPrefs): one preference per axis.
+    "musicprefs": ("fidelity", "musicality"),
+    # Yao et al. 2025 (SongEval): five aesthetic dimensions for full songs.
+    "songeval": (
+        "overall_coherence",
+        "memorability",
+        "vocal_naturalness",
+        "structure_clarity",
+        "overall_musicality",
+    ),
+    # SongEval without the vocal dimension, for instrumental material.
+    "songeval-instrumental": (
+        "overall_coherence",
+        "memorability",
+        "structure_clarity",
+        "overall_musicality",
+    ),
+}
+
+# What raters are told each criterion means; shown under the criterion name.
+CRITERIA_DEFINITIONS: dict[str, str] = {
+    "overall_preference": "Which one would you rather listen to again?",
+    "prompt_alignment": "Which one better matches the prompt shown above?",
+    "musicality_structure": "Which one has the stronger melody, harmony and form?",
+    "production_quality": "Which one sounds better produced: mix, clarity, no artifacts?",
+    "fidelity": "Which one has better sound quality, ignoring the music itself?",
+    "musicality": "Which one is musically better, ignoring sound quality?",
+    "overall_coherence": (
+        "Which one keeps musical and emotional continuity across its sections?"
+    ),
+    "memorability": "Which one has the catchier melody, motif or hook?",
+    "vocal_naturalness": "Which one has more natural vocal phrasing and breathing?",
+    "structure_clarity": "In which one are verse, chorus and bridge clearer?",
+    "overall_musicality": (
+        "Which one is more enjoyable overall: melody, harmony, arrangement, vocals?"
+    ),
+}
+
 
 @dataclass(frozen=True)
 class Comparison:
@@ -200,6 +243,9 @@ def build_listening_study(
         "study_id": study_id,
         "title": title,
         "criteria": list(criteria),
+        "criteria_definitions": {
+            name: CRITERIA_DEFINITIONS[name] for name in criteria if name in CRITERIA_DEFINITIONS
+        },
         "trials": public_trials,
     }
     key = {

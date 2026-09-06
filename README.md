@@ -111,7 +111,8 @@ See [docs/suites.md](docs/suites.md).
 
 **Blind listening studies.** `init-listening-study` turns a comparison
 manifest into a model-blind A/B page with seeded order, hidden repeat trials
-and a private organizer key; `serve-listening-study` collects responses;
+and a private organizer key, with criteria presets taken from MusicPrefs and
+SongEval or your own list; `serve-listening-study` collects responses;
 `analyze-listening-study` reports preference rates, Bradley-Terry strengths
 with rater-level bootstrap intervals, repeat and inter-rater agreement, and a
 side-bias check. See [docs/listening-studies.md](docs/listening-studies.md).

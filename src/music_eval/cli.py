@@ -11,7 +11,7 @@ from music_eval.distribution import compare_embedding_distributions, load_embedd
 from music_eval.distribution_report import write_distribution_report
 from music_eval.evaluator import ensure_output_directory, evaluate_manifest
 from music_eval.listening import (
-    DEFAULT_CRITERIA,
+    CRITERIA_PRESETS,
     analyze_listening_responses,
     build_listening_study,
     load_comparisons,
@@ -110,7 +110,16 @@ def build_parser() -> argparse.ArgumentParser:
     init_study.add_argument("--title", default="Generated music study")
     init_study.add_argument("--seed", type=int, default=20260906)
     init_study.add_argument("--repeat-fraction", type=float, default=0.1)
-    init_study.add_argument("--criteria", default=",".join(DEFAULT_CRITERIA))
+    criteria_group = init_study.add_mutually_exclusive_group()
+    criteria_group.add_argument(
+        "--criteria",
+        help="comma-separated criterion names (default: the timmy preset)",
+    )
+    criteria_group.add_argument(
+        "--criteria-preset",
+        choices=sorted(CRITERIA_PRESETS),
+        help="a published criteria set; see docs/listening-studies.md",
+    )
     init_study.add_argument("--force", action="store_true", help="overwrite output")
 
     serve = subparsers.add_parser("serve-listening-study", help="serve and collect responses")
@@ -244,7 +253,10 @@ def _init_longform_study(args: argparse.Namespace) -> int:
 def _init_listening_study(args: argparse.Namespace) -> int:
     if not math.isfinite(args.repeat_fraction):
         raise ValueError("--repeat-fraction must be finite")
-    criteria = tuple(part.strip() for part in args.criteria.split(",") if part.strip())
+    if args.criteria:
+        criteria = tuple(part.strip() for part in args.criteria.split(",") if part.strip())
+    else:
+        criteria = CRITERIA_PRESETS[args.criteria_preset or "timmy"]
     public_path, key_path, trial_count = build_listening_study(
         load_comparisons(args.comparisons),
         args.output,

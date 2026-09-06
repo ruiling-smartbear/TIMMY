@@ -35,6 +35,14 @@ Fixed
 - Report cells escape `|`, so a system named `cand|v2` no longer breaks the
   distribution table.
 
+Added
+
+- `init-listening-study --criteria-preset` with criteria sets from
+  published protocols: `musicprefs` (fidelity, musicality), `songeval` (five
+  aesthetic dimensions) and `songeval-instrumental`; the study page shows a
+  one-line definition under each criterion and `study.json` records them.
+- `music-eval --version`.
+
 Changed
 
 - WAV files are read by a small RIFF parser instead of the `wave` module:

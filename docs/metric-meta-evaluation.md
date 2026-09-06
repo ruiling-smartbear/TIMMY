@@ -49,14 +49,22 @@ statistics are calculated.
 
 ## Protocols
 
-The paper's exact synthetic protocols are:
+The paper's four synthetic protocols, each with K = 11 levels (Table 4 in its
+Appendix B):
 
-- fidelity: Gaussian noise standard deviation from 0 to 0.2 in steps of 0.02;
-- musicality: perturb a growing fraction of MIDI notes by up to six semitones
-  and their onset/offset by up to 0.2 seconds;
-- context: generate 30-second MusicGen-Small clips in blocks whose available
-  context ranges from 1 to 15 seconds;
-- diversity: generate from prompt pools ranging from 1 to 2,500 unique prompts.
+- fidelity: Gaussian noise with standard deviation in
+  {0, 0.02, 0.04, ..., 0.18, 0.2};
+- musicality: perturb a subset of Lakh MIDI notes by [-6, 6] semitones in
+  pitch and [-0.2, 0.2] s in onset and offset, with the note perturbation
+  probability in {0, 0.05, 0.1, ..., 0.45, 0.5};
+- context: generate 30-second MusicGen-Small clips in blocks of
+  {1, 2, ..., 10, 15} s, each block seeing only the previous block as context;
+- diversity: generate 5,000 clips from prompt pools of
+  {1, 5, 10, 25, 50, 100, 200, 500, 1000, 2000, 2500} unique prompts.
+
+`prepare-fidelity-perturbations` reproduces the first ladder exactly (its
+default sigmas are that list); the other three need MIDI rendering, a
+generator and a prompt corpus and are not bundled.
 
 Reproducing those headline results also requires the named corpora, generator,
 embedding backbone, layer, pooling rule, reference distribution, and 5,000

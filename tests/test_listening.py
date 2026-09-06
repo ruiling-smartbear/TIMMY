@@ -444,3 +444,75 @@ def test_rater_bootstrap_agreement_and_side_diagnostics(tmp_path, write_wav):
     assert "40 rater-level bootstrap samples" in markdown
     assert "inter-rater pair agreement" in markdown
     assert "[100.0%, 100.0%]" in markdown
+
+
+@pytest.mark.parametrize(
+    ("preset", "expected"),
+    [
+        ("musicprefs", ("fidelity", "musicality")),
+        (
+            "songeval",
+            (
+                "overall_coherence",
+                "memorability",
+                "vocal_naturalness",
+                "structure_clarity",
+                "overall_musicality",
+            ),
+        ),
+    ],
+)
+def test_criteria_presets_build_studies_with_definitions(tmp_path, write_wav, preset, expected):
+    from music_eval.cli import main
+    from music_eval.listening import CRITERIA_DEFINITIONS, CRITERIA_PRESETS
+
+    assert CRITERIA_PRESETS[preset] == expected
+    assert all(name in CRITERIA_DEFINITIONS for name in expected)
+    comparisons = _manifest(tmp_path, write_wav)
+    study_dir = tmp_path / f"study-{preset}"
+
+    assert main(
+        [
+            "init-listening-study",
+            str(comparisons),
+            "--output",
+            str(study_dir),
+            "--criteria-preset",
+            preset,
+        ]
+    ) == 0
+
+    public = json.loads((study_dir / "study.json").read_text(encoding="utf-8"))
+    assert tuple(public["criteria"]) == expected
+    assert set(public["criteria_definitions"]) == set(expected)
+    page = (study_dir / "index.html").read_text(encoding="utf-8")
+    assert CRITERIA_DEFINITIONS[expected[0]] in page
+
+
+def test_songeval_instrumental_preset_drops_the_vocal_dimension():
+    from music_eval.listening import CRITERIA_PRESETS
+
+    assert "vocal_naturalness" in CRITERIA_PRESETS["songeval"]
+    assert "vocal_naturalness" not in CRITERIA_PRESETS["songeval-instrumental"]
+    assert len(CRITERIA_PRESETS["songeval-instrumental"]) == 4
+
+
+def test_criteria_and_preset_are_mutually_exclusive(tmp_path, write_wav, capsys):
+    from music_eval.cli import main
+
+    comparisons = _manifest(tmp_path, write_wav)
+
+    with pytest.raises(SystemExit) as exit_info:
+        main(
+            [
+                "init-listening-study",
+                str(comparisons),
+                "--criteria",
+                "a,b",
+                "--criteria-preset",
+                "musicprefs",
+            ]
+        )
+
+    assert exit_info.value.code == 2
+    assert "not allowed with argument" in capsys.readouterr().err
