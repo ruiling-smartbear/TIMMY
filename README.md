@@ -308,6 +308,7 @@ exit code proves the gate catches the injected defect.
 - [Metric plugin API](docs/plugin-api.md)
 - [Model support matrix](docs/model-support.md)
 - [Music-theory extraction research](docs/music-theory-research.md)
+- [Music-AI evaluation landscape and product ideas](docs/music-evaluation-landscape.md)
 - [Blind listening studies](docs/listening-studies.md)
 - [Distribution evaluation](docs/distribution-evaluation.md)
 - [Contributing](CONTRIBUTING.md)
