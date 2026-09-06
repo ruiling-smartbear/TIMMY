@@ -6,6 +6,7 @@ import subprocess
 import sys
 
 import numpy as np
+import pytest
 
 from music_eval.cli import main
 
@@ -290,3 +291,13 @@ def test_cli_rejects_empty_metric_list_instead_of_running_defaults(tmp_path, cap
     assert exit_code == 2
     assert "--metrics must name at least one plugin" in capsys.readouterr().err
     assert not (tmp_path / "out").exists()
+
+
+def test_version_flag_prints_the_package_version(capsys):
+    import music_eval
+
+    with pytest.raises(SystemExit) as exit_info:
+        main(["--version"])
+
+    assert exit_info.value.code == 0
+    assert capsys.readouterr().out.strip() == f"music-eval {music_eval.__version__}"

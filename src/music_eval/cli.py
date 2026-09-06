@@ -6,6 +6,7 @@ import math
 import sys
 from pathlib import Path
 
+from music_eval import __version__
 from music_eval.distribution import compare_embedding_distributions, load_embedding_manifest
 from music_eval.distribution_report import write_distribution_report
 from music_eval.evaluator import ensure_output_directory, evaluate_manifest
@@ -32,6 +33,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="music-eval", description="Evaluate generated music outputs"
     )
+    parser.add_argument("--version", action="version", version=f"music-eval {__version__}")
     subparsers = parser.add_subparsers(dest="command", required=True)
 
     evaluate = subparsers.add_parser("evaluate", help="evaluate a JSONL manifest")
