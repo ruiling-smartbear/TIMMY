@@ -49,6 +49,7 @@ def test_builtin_plugins_are_discoverable():
         "audiobox_aesthetics",
         "clap_alignment",
         "integrity",
+        "muq_mulan_alignment",
         "pairwise",
         "production_quality",
         "temporal_consistency",

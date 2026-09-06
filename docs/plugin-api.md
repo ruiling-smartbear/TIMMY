@@ -58,6 +58,11 @@ The implementation records its checkpoint, Transformers version, device, and
 preprocessing contract. Missing prompts and unavailable dependencies are
 attributed plugin failures; low learned scores remain ungated evidence.
 
+`muq_mulan_alignment` is installed with `music-eval[muq]`. It uses the official
+`OpenMuQ/MuQ-MuLan-large` checkpoint in float32 at 24 kHz and exposes the same
+window-level similarity, hard-negative margin, and rank schema as CLAP. The
+published weights are CC-BY-NC 4.0, so reports record that license explicitly.
+
 `temporal_consistency` has no optional dependencies. It provides local spectral
 features, transition distributions, first-to-last drift, non-local repetition,
 and ending evidence. It intentionally produces no findings: a repeated chorus

@@ -7,8 +7,8 @@ separate evidence instead of hiding them behind one universal score.
 
 The current release is a lightweight, offline foundation. It validates PCM WAV
 outputs, compares deterministic candidate/reference pairs, stratifies results
-by musical attributes, and offers optional Meta Audiobox Aesthetics and CLAP
-alignment plugins alongside a boundary for future MuQ, FAD, and serving
+by musical attributes, and offers optional Meta Audiobox Aesthetics, CLAP, and
+MuQ-MuLan alignment plugins alongside a boundary for future FAD and serving
 integrations.
 
 ## Principles
@@ -28,6 +28,10 @@ integrations.
 ```bash
 python -m pip install -e .
 ```
+
+Install learned-model extras in a dedicated virtual environment. Their
+upstream packages include mutually versioned PyTorch, Torchaudio, and
+Torchvision dependencies, so pip may otherwise upgrade an existing ML stack.
 
 ## Evaluate existing outputs
 
@@ -142,6 +146,24 @@ non-overlapping 10-second windows. Reports retain track-level duration-weighted
 cosine similarities and every window so a strong opening cannot conceal later
 prompt drift. Raw similarity has no universal pass threshold; hard-negative
 margin and within-case rank are the more interpretable comparisons.
+
+### `muq_mulan_alignment` (optional, non-commercial weights)
+
+MuQ-MuLan provides a second, music-specific audio/text alignment view. It uses
+Tencent AI Lab's official `OpenMuQ/MuQ-MuLan-large` checkpoint in float32,
+resamples to 24 kHz mono, and reports the same window, hard-negative margin,
+and rank evidence as CLAP:
+
+```bash
+python -m pip install -e '.[muq]'
+music-eval evaluate manifest.jsonl \
+  --metrics integrity,muq_mulan_alignment \
+  --output report
+```
+
+The MuQ source code is MIT licensed, but the published model weights are
+CC-BY-NC 4.0. Do not use those weights for commercial evaluation without
+separate permission. As with CLAP, raw similarity has no universal threshold.
 
 ### `temporal_consistency`
 
@@ -284,6 +306,7 @@ exit code proves the gate catches the injected defect.
 - [Architecture](docs/architecture.md)
 - [Manifest contract](docs/manifest.md)
 - [Metric plugin API](docs/plugin-api.md)
+- [Model support matrix](docs/model-support.md)
 - [Blind listening studies](docs/listening-studies.md)
 - [Distribution evaluation](docs/distribution-evaluation.md)
 - [Contributing](CONTRIBUTING.md)

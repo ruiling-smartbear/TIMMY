@@ -10,7 +10,7 @@ JSONL manifest
     ├── metric plugins
     │     ├── integrity
     │     ├── pairwise
-    │     └── external: CLAP, MuQ, FAD, ...
+    │     └── learned: Audiobox Aesthetics, CLAP, MuQ-MuLan
     │
     ├── explicit expectation gates
     │
