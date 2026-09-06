@@ -6,11 +6,23 @@ import json
 from pathlib import Path
 from typing import Any
 
+_SEPARATED_NOTE = (
+    "* Separated data: the Bradley-Terry maximum-likelihood estimate does not exist "
+    "(some system or group of systems never lost or never won), so log strengths are the "
+    "ridge-regularized estimate and should be read as an ordering only."
+)
+
+
+def _rank_cell(row: dict[str, Any]) -> str:
+    rank = "—" if row["rank"] is None else str(row["rank"])
+    return f"{rank}*" if row["separated"] else rank
+
 
 def write_listening_report(result: dict[str, Any], output_dir: Path) -> None:
     output_dir.mkdir(parents=True, exist_ok=True)
     (output_dir / "report.json").write_text(
-        json.dumps(result, indent=2, ensure_ascii=False) + "\n"
+        json.dumps(result, indent=2, ensure_ascii=False, allow_nan=False) + "\n",
+        encoding="utf-8",
     )
     lines = [
         f"# {result['title']} — listening results",
@@ -51,7 +63,7 @@ def write_listening_report(result: dict[str, Any], output_dir: Path) -> None:
         )
         body = []
         for row in rows:
-            rank = row["rank"] if row["rank"] is not None else "—"
+            rank = _rank_cell(row)
             preference_ci = row.get("preference_rate_ci95")
             strength_ci = row.get("log_strength_ci95")
             rendered_preference_ci = (
@@ -77,6 +89,10 @@ def write_listening_report(result: dict[str, Any], output_dir: Path) -> None:
                 f"<td>{row['log_strength']:.3f}<small>{rendered_strength_ci}</small></td>"
                 f"<td>{row['vs_average']:.1%}</td><td>{row['comparisons']}</td></tr>"
             )
+        separated_note = ""
+        if any(row["separated"] for row in rows):
+            lines.extend(["", "\\" + _SEPARATED_NOTE])
+            separated_note = f"<p>{html.escape(_SEPARATED_NOTE)}</p>"
         reliability = result["repeat_reliability"][criterion]
         rate = reliability["agreement_rate"]
         rendered_rate = "not measured" if rate is None else f"{rate:.1%}"
@@ -99,7 +115,7 @@ def write_listening_report(result: dict[str, Any], output_dir: Path) -> None:
             f"<section><h2>{html.escape(title)}</h2><table><thead><tr><th>#</th>"
             f"<th>Component</th><th>System</th>"
             f"<th>Preference</th><th>BT strength</th><th>vs avg.</th><th>N</th></tr></thead>"
-            f"<tbody>{''.join(body)}</tbody></table><p>Repeat agreement: {rendered_rate} · "
+            f"<tbody>{''.join(body)}</tbody></table>{separated_note}<p>Repeat agreement: {rendered_rate} · "
             f"inter-rater agreement: {rendered_inter} · side-A rate: {rendered_side}</p></section>"
         )
     if result["strata"]:
@@ -122,7 +138,7 @@ def write_listening_report(result: dict[str, Any], output_dir: Path) -> None:
                 )
                 body = []
                 for row in rows:
-                    rank = row["rank"] if row["rank"] is not None else "—"
+                    rank = _rank_cell(row)
                     lines.append(
                         f"| {rank} | {row['system']} | {row['preference_rate']:.1%} | "
                         f"{row['comparisons']} |"
@@ -131,17 +147,21 @@ def write_listening_report(result: dict[str, Any], output_dir: Path) -> None:
                         f"<tr><td>{rank}</td><td>{html.escape(str(row['system']))}</td>"
                         f"<td>{row['preference_rate']:.1%}</td><td>{row['comparisons']}</td></tr>"
                     )
+                separated_note = ""
+                if any(row["separated"] for row in rows):
+                    lines.extend(["", "\\" + _SEPARATED_NOTE])
+                    separated_note = f"<p>{html.escape(_SEPARATED_NOTE)}</p>"
                 lines.append("")
                 sections.append(
                     f"<h3>{html.escape(criterion_title)}</h3><table><thead><tr><th>#</th>"
                     f"<th>System</th><th>Preference</th><th>N</th></tr></thead>"
-                    f"<tbody>{''.join(body)}</tbody></table>"
+                    f"<tbody>{''.join(body)}</tbody></table>{separated_note}"
                 )
             cards.append(
                 f"<section><h2>{html.escape(heading)}</h2><p>{stratum['trials']} trials</p>"
                 f"{''.join(sections)}</section>"
             )
-    (output_dir / "report.md").write_text("\n".join(lines))
+    (output_dir / "report.md").write_text("\n".join(lines), encoding="utf-8")
     document = f"""<!doctype html><html><head><meta charset=\"utf-8\"><meta name=\"viewport\" content=\"width=device-width\"><title>Listening results</title><style>
 body{{font-family:ui-monospace,monospace;background:#f2eddf;color:#191812;margin:0;padding:48px}}main{{max-width:1100px;margin:auto}}h1,h2{{font-family:Georgia,serif}}h1{{font-size:54px}}section{{background:#fbf8ef;border:2px solid #191812;box-shadow:7px 7px 0 #191812;padding:24px;margin:28px 0;overflow:auto}}table{{border-collapse:collapse;width:100%}}th,td{{padding:10px;border-bottom:1px solid #aaa;text-align:left}}th{{font-size:11px;text-transform:uppercase}}small{{display:block;color:#716d61;margin-top:4px;white-space:nowrap}}</style></head><body><main><h1>{html.escape(str(result['title']))}</h1><p>{result['raters']} raters · {result['trials_per_rater']} trials each</p>{''.join(cards)}</main></body></html>"""
-    (output_dir / "report.html").write_text(document)
+    (output_dir / "report.html").write_text(document, encoding="utf-8")

@@ -60,3 +60,38 @@ def test_server_validates_submissions_and_hides_responses(tmp_path):
         server.shutdown()
         server.server_close()
         thread.join(timeout=2)
+
+
+def test_server_hides_responses_for_encoded_and_dot_segment_paths(tmp_path):
+    (tmp_path / "study.json").write_text('{"study_id": "s", "criteria": [], "trials": []}')
+    (tmp_path / "index.html").write_text("study")
+    server = make_study_server(tmp_path, "127.0.0.1", 0)
+    saved = tmp_path / "responses" / "response-secret.json"
+    saved.write_text('{"rater_id": "r"}')
+    thread = threading.Thread(target=server.serve_forever, daemon=True)
+    thread.start()
+    base = f"http://127.0.0.1:{server.server_address[1]}"
+    try:
+        with urllib.request.urlopen(f"{base}/index.html") as ok:
+            assert ok.status == 200
+        with urllib.request.urlopen(f"{base}/") as root:
+            assert root.status == 200
+        for path in (
+            f"/responses/{saved.name}",
+            f"/%72esponses/{saved.name}",
+            f"/./responses/{saved.name}",
+            f"/../responses/{saved.name}",
+            f"//responses/{saved.name}",
+            f"/responses/./{saved.name}",
+            "/responses/",
+            "/responses",
+        ):
+            for method in ("GET", "HEAD"):
+                request = urllib.request.Request(base + path, method=method)
+                with pytest.raises(urllib.error.HTTPError) as hidden:
+                    urllib.request.urlopen(request)
+                assert hidden.value.code == 404, (path, method)
+    finally:
+        server.shutdown()
+        server.server_close()
+        thread.join(timeout=2)

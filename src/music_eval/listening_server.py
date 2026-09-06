@@ -12,7 +12,7 @@ from music_eval.listening import validate_response
 
 def make_study_server(directory: Path, host: str, port: int) -> ThreadingHTTPServer:
     directory = directory.resolve()
-    study = json.loads((directory / "study.json").read_text())
+    study = json.loads((directory / "study.json").read_text(encoding="utf-8"))
     responses = directory / "responses"
     responses.mkdir(exist_ok=True)
 
@@ -43,7 +43,9 @@ def make_study_server(directory: Path, host: str, port: int) -> ThreadingHTTPSer
                 self.send_error(HTTPStatus.BAD_REQUEST, str(error))
                 return
             name = f"response-{secrets.token_hex(12)}.json"
-            (responses / name).write_text(json.dumps(payload, indent=2, ensure_ascii=False) + "\n")
+            (responses / name).write_text(
+                json.dumps(payload, indent=2, ensure_ascii=False) + "\n", encoding="utf-8"
+            )
             body = json.dumps({"saved": name}).encode()
             self.send_response(HTTPStatus.CREATED)
             self.send_header("Content-Type", "application/json")
@@ -51,14 +53,21 @@ def make_study_server(directory: Path, host: str, port: int) -> ThreadingHTTPSer
             self.end_headers()
             self.wfile.write(body)
 
+        def _hidden(self) -> bool:
+            # Decide on the resolved filesystem target, not the raw URL, so encoded or
+            # dot-segment spellings of /responses and symlinks out of the study are refused.
+            target = Path(self.translate_path(self.path)).resolve()
+            inside = target == directory or directory in target.parents
+            return not inside or target == responses or responses in target.parents
+
         def do_GET(self) -> None:
-            if self.path.split("?", 1)[0].startswith("/responses"):
+            if self._hidden():
                 self.send_error(HTTPStatus.NOT_FOUND)
                 return
             super().do_GET()
 
         def do_HEAD(self) -> None:
-            if self.path.split("?", 1)[0].startswith("/responses"):
+            if self._hidden():
                 self.send_error(HTTPStatus.NOT_FOUND)
                 return
             super().do_HEAD()

@@ -23,7 +23,8 @@ def _row(system: str, metrics: dict[str, Any]) -> str:
 def write_distribution_report(result: dict[str, Any], output_dir: Path) -> None:
     output_dir.mkdir(parents=True, exist_ok=True)
     (output_dir / "report.json").write_text(
-        json.dumps(result, indent=2, ensure_ascii=False) + "\n"
+        json.dumps(result, indent=2, ensure_ascii=False, allow_nan=False) + "\n",
+        encoding="utf-8",
     )
     lines = [
         "# Music distribution report",
@@ -55,7 +56,7 @@ def write_distribution_report(result: dict[str, Any], output_dir: Path) -> None:
             for system, metrics in comparisons.items():
                 lines.append(_row(system, metrics))
             lines.append("")
-    (output_dir / "report.md").write_text("\n".join(lines))
+    (output_dir / "report.md").write_text("\n".join(lines), encoding="utf-8")
 
     def table(comparisons: dict[str, Any]) -> str:
         rows = []
@@ -80,4 +81,4 @@ def write_distribution_report(result: dict[str, Any], output_dir: Path) -> None:
                 f"<h2>{html.escape(value)}</h2>{table(comparisons)}</section>"
             )
     document = f"""<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width"><title>Music distribution report</title><style>body{{margin:0;background:#11140f;color:#edf5dd;font-family:Menlo,monospace;padding:52px}}main{{max-width:1180px;margin:auto}}h1,h2{{font-family:"Iowan Old Style",Baskerville,serif}}h1{{font-size:58px;margin-bottom:8px}}.lede,.eyebrow{{color:#a8b49b}}.eyebrow{{text-transform:uppercase;letter-spacing:.15em;font-size:11px}}section{{margin:36px 0;padding:24px;border:1px solid #59634f;background:#181d15;overflow:auto}}table{{width:100%;border-collapse:collapse;white-space:nowrap}}th,td{{padding:11px;text-align:left;border-bottom:1px solid #394033}}th{{color:#cce976;font-size:11px;text-transform:uppercase}}</style></head><body><main><p class="eyebrow">music-eval / corpus evidence</p><h1>Distribution report</h1><p class="lede">{html.escape(result['embedding_model'])} · {html.escape(result['checkpoint'])} · reference: {html.escape(result['reference_system'])}</p>{''.join(sections)}</main></body></html>"""
-    (output_dir / "report.html").write_text(document)
+    (output_dir / "report.html").write_text(document, encoding="utf-8")

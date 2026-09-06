@@ -15,6 +15,7 @@ from pathlib import Path
 from typing import Any, Literal
 
 import numpy as np
+from numpy.typing import NDArray
 
 Choice = Literal["A", "B", "tie"]
 DEFAULT_CRITERIA = (
@@ -210,8 +211,10 @@ def build_listening_study(
         "trials": key_trials,
     }
     public_path = output_dir / "study.json"
-    public_path.write_text(json.dumps(public, indent=2, ensure_ascii=False) + "\n")
-    key_path.write_text(json.dumps(key, indent=2, ensure_ascii=False) + "\n")
+    public_path.write_text(
+        json.dumps(public, indent=2, ensure_ascii=False) + "\n", encoding="utf-8"
+    )
+    key_path.write_text(json.dumps(key, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
     return public_path, key_path, len(public_trials)
 
 
@@ -232,6 +235,9 @@ def validate_response(response: object, key: dict[str, Any]) -> dict[str, Any]:
     answers = response.get("answers")
     if not isinstance(answers, list):
         raise ValueError("answers must be a list")
+    submitted_at = response.get("submitted_at")
+    if submitted_at is not None and not isinstance(submitted_at, str):
+        raise ValueError("submitted_at must be a string")
     expected_trials = {trial["id"] for trial in key["trials"]}
     expected_criteria = set(key["criteria"])
     normalized: list[dict[str, Any]] = []
@@ -247,6 +253,7 @@ def validate_response(response: object, key: dict[str, Any]) -> dict[str, Any]:
         ratings = answer.get("ratings")
         if not isinstance(ratings, dict) or set(ratings) != expected_criteria:
             raise ValueError(f"{context}: ratings must contain every configured criterion")
+        note = answer.get("note")
         normalized.append(
             {
                 "trial_id": trial_id,
@@ -254,7 +261,7 @@ def validate_response(response: object, key: dict[str, Any]) -> dict[str, Any]:
                     criterion: _response_choice(ratings[criterion], context)
                     for criterion in key["criteria"]
                 },
-                "note": str(answer.get("note", ""))[:1000],
+                "note": "" if note is None else str(note)[:1000],
             }
         )
     if seen != expected_trials:
@@ -263,7 +270,7 @@ def validate_response(response: object, key: dict[str, Any]) -> dict[str, Any]:
         "schema_version": 1,
         "study_id": key["study_id"],
         "rater_id": rater_id.strip(),
-        "submitted_at": response.get("submitted_at") or datetime.now(timezone.utc).isoformat(),
+        "submitted_at": submitted_at or datetime.now(timezone.utc).isoformat(),
         "answers": normalized,
     }
 
@@ -274,41 +281,73 @@ def _winner(choice: Choice, trial: dict[str, Any]) -> str | None:
     return str(trial[f"system_{choice.lower()}"])
 
 
+def _strongly_connected(edges: NDArray[np.bool_], present: NDArray[np.bool_]) -> bool:
+    if present.sum() < 2:
+        return True
+    start = int(np.flatnonzero(present)[0])
+    for adjacency in (edges, edges.T):
+        reached = np.zeros(len(edges), dtype=bool)
+        reached[start] = True
+        while True:
+            frontier = adjacency[reached].any(axis=0) & ~reached
+            if not frontier.any():
+                break
+            reached |= frontier
+        if not np.array_equal(reached, present):
+            return False
+    return True
+
+
 def _fit_bradley_terry(
     systems: list[str], observations: list[tuple[int, int, float]]
 ) -> list[dict[str, Any]]:
-    if len(systems) == 1:
-        return [{"system": systems[0], "rank": 1, "log_strength": 0.0, "vs_average": 0.5}]
-    theta = np.zeros(len(systems), dtype=np.float64)
+    count = len(systems)
+    if count == 1:
+        return [
+            {
+                "system": systems[0],
+                "rank": 1,
+                "log_strength": 0.0,
+                "vs_average": 0.5,
+                "separated": False,
+            }
+        ]
+    # Aggregate observations once into count x count matrices indexed [left, right]:
+    # how often the pair was seen and the total outcome (1 win, 0.5 tie, 0 loss) for left.
+    table = np.array(observations, dtype=np.float64).reshape(-1, 3)
+    codes = table[:, 0].astype(np.intp) * count + table[:, 1].astype(np.intp)
+    seen = np.bincount(codes, minlength=count * count).reshape(count, count).astype(np.float64)
+    won = np.bincount(codes, weights=table[:, 2], minlength=count * count).reshape(count, count)
+    # The maximum-likelihood estimate exists iff the digraph with an edge i -> j whenever
+    # i took any outcome > 0 against j is strongly connected among the compared systems.
+    edges = (won > 0.0) | ((seen - won).T > 0.0)
+    present = (seen.sum(axis=1) + seen.sum(axis=0)) > 0.0
+    separated = not _strongly_connected(edges, present)
+    theta = np.zeros(count, dtype=np.float64)
     ridge = 1e-6
     for _ in range(100):
-        gradient = -ridge * theta
-        information = np.eye(len(systems), dtype=np.float64) * ridge
-        for left, right, outcome in observations:
-            difference = float(np.clip(theta[left] - theta[right], -30.0, 30.0))
-            probability = 1.0 / (1.0 + math.exp(-difference))
-            residual = outcome - probability
-            weight = probability * (1.0 - probability)
-            gradient[left] += residual
-            gradient[right] -= residual
-            information[left, left] += weight
-            information[right, right] += weight
-            information[left, right] -= weight
-            information[right, left] -= weight
-        delta = np.linalg.solve(information + np.ones_like(information) / len(systems), gradient)
+        difference = np.clip(theta[:, None] - theta[None, :], -30.0, 30.0)
+        probability = 1.0 / (1.0 + np.exp(-difference))
+        residual = won - seen * probability
+        weight = seen * probability * (1.0 - probability)
+        gradient = -ridge * theta + residual.sum(axis=1) - residual.sum(axis=0)
+        information = (
+            np.diag(weight.sum(axis=1) + weight.sum(axis=0) + ridge) - weight - weight.T
+        )
+        delta = np.linalg.solve(information + np.ones_like(information) / count, gradient)
         theta += delta
         theta -= theta.mean()
         if float(np.max(np.abs(delta))) < 1e-9:
             break
-    order = np.argsort(-theta)
-    ranks = np.empty(len(systems), dtype=int)
-    ranks[order] = np.arange(1, len(systems) + 1)
+    strengths = [round(float(value), 6) for value in theta]
+    dense_rank = {value: rank for rank, value in enumerate(sorted(set(strengths), reverse=True), 1)}
     return [
         {
             "system": system,
-            "rank": int(ranks[index]),
-            "log_strength": round(float(theta[index]), 6),
+            "rank": dense_rank[strengths[index]],
+            "log_strength": strengths[index],
             "vs_average": round(float(1.0 / (1.0 + math.exp(-theta[index]))), 6),
+            "separated": separated,
         }
         for index, system in enumerate(systems)
     ]
@@ -523,6 +562,32 @@ def _side_choice_diagnostics(
     return output
 
 
+def _validate_organizer_key(key: object) -> dict[str, Any]:
+    if (
+        not isinstance(key, dict)
+        or not isinstance(key.get("study_id"), str)
+        or not isinstance(key.get("title"), str)
+        or not isinstance(key.get("criteria"), list)
+        or not all(isinstance(criterion, str) for criterion in key["criteria"])
+        or not isinstance(key.get("trials"), list)
+        or not key["trials"]
+    ):
+        raise ValueError(
+            "organizer key must be an object with study_id, title, criteria, and trials"
+        )
+    fields = ("id", "source_id", "system_a", "system_b")
+    for index, trial in enumerate(key["trials"], 1):
+        if not isinstance(trial, dict) or not all(isinstance(trial.get(f), str) for f in fields):
+            hint = (
+                "; this looks like the public study file (study.json), "
+                "pass the private .organizer.json key instead"
+                if isinstance(trial, dict) and "audio_a" in trial
+                else ""
+            )
+            raise ValueError(f"organizer key trial {index} must have {', '.join(fields)}{hint}")
+    return key
+
+
 def analyze_listening_responses(
     key: dict[str, Any],
     responses: Iterable[dict[str, Any]],
@@ -530,6 +595,7 @@ def analyze_listening_responses(
     bootstrap_samples: int = 1000,
     bootstrap_seed: int = 20260906,
 ) -> dict[str, Any]:
+    key = _validate_organizer_key(key)
     trials = {trial["id"]: trial for trial in key["trials"]}
     validated = [validate_response(response, key) for response in responses]
     if not validated:

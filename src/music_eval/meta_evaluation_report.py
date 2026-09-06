@@ -14,7 +14,8 @@ def _number(value: float | None) -> str:
 def write_meta_evaluation_report(result: dict[str, Any], output_dir: Path) -> None:
     output_dir.mkdir(parents=True, exist_ok=True)
     (output_dir / "report.json").write_text(
-        json.dumps(result, indent=2, ensure_ascii=False) + "\n"
+        json.dumps(result, indent=2, ensure_ascii=False, allow_nan=False) + "\n",
+        encoding="utf-8",
     )
     lines = [
         "# Metric ordering meta-evaluation",
@@ -48,7 +49,7 @@ def write_meta_evaluation_report(result: dict[str, Any], output_dir: Path) -> No
                 f"{level['score_mean']:.6g} | {level['score_std']:.6g} | "
                 f"{level['score_min']:.6g} | {level['score_max']:.6g} |"
             )
-    (output_dir / "report.md").write_text("\n".join(lines) + "\n")
+    (output_dir / "report.md").write_text("\n".join(lines) + "\n", encoding="utf-8")
 
     rows = []
     for group in result["groups"]:
@@ -61,4 +62,4 @@ def write_meta_evaluation_report(result: dict[str, Any], output_dir: Path) -> No
             f"<td>{_number(group['ordered_pair_accuracy'])}</td></tr>"
         )
     document = f"""<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width"><title>Metric meta-evaluation</title><style>body{{margin:0;background:#f5f1e8;color:#172136;font-family:ui-monospace,monospace;padding:52px}}main{{max-width:1050px;margin:auto}}h1{{font:56px Georgia,serif;margin-bottom:10px}}.lede{{max-width:760px;color:#526073}}section{{margin-top:36px;background:#fffaf1;border:1px solid #d8ccba;padding:24px;overflow:auto}}table{{width:100%;border-collapse:collapse}}th,td{{padding:12px;text-align:left;border-bottom:1px solid #ded5c7}}th{{font-size:11px;text-transform:uppercase;color:#7f4561}}</style></head><body><main><h1>Does the metric notice?</h1><p class="lede">Ordered perturbation evidence for metric sensitivity. High agreement is necessary, not sufficient, for perceptual validity.</p><section><table><thead><tr><th>Condition</th><th>Metric</th><th>Expected</th><th>Levels</th><th>N</th><th>Kendall τ-b</th><th>Ordered pairs</th></tr></thead><tbody>{''.join(rows)}</tbody></table></section></main></body></html>"""
-    (output_dir / "report.html").write_text(document)
+    (output_dir / "report.html").write_text(document, encoding="utf-8")

@@ -252,7 +252,7 @@ def _init_listening_study(args: argparse.Namespace) -> int:
         criteria=criteria,
         overwrite=args.force,
     )
-    public = json.loads(public_path.read_text())
+    public = json.loads(public_path.read_text(encoding="utf-8"))
     write_listening_interface(public, args.output / "index.html")
     print(f"wrote {trial_count} anonymous trials to {args.output}")
     print(f"organizer key (keep private): {key_path}")
@@ -260,8 +260,8 @@ def _init_listening_study(args: argparse.Namespace) -> int:
 
 
 def _analyze_listening_study(args: argparse.Namespace) -> int:
-    key = json.loads(args.organizer_key.read_text())
-    responses = [json.loads(path.read_text()) for path in args.responses]
+    key = json.loads(args.organizer_key.read_text(encoding="utf-8"))
+    responses = [json.loads(path.read_text(encoding="utf-8")) for path in args.responses]
     result = analyze_listening_responses(
         key,
         responses,

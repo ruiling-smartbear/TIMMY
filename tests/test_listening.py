@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import json
+import math
+import random
 from pathlib import Path
 
 import numpy as np
@@ -8,6 +10,7 @@ import pytest
 
 from music_eval.listening import (
     DEFAULT_CRITERIA,
+    _fit_bradley_terry,
     analyze_listening_responses,
     build_listening_study,
     load_comparisons,
@@ -54,6 +57,212 @@ def _response(key: dict, winning_system: str) -> dict:
         "rater_id": "listener-1",
         "answers": answers,
     }
+
+
+def _key(trials: list[tuple[str, str, str]], criteria: tuple[str, ...] = ("overall",)) -> dict:
+    return {
+        "study_id": "study",
+        "title": "Synthetic",
+        "criteria": list(criteria),
+        "trials": [
+            {"id": trial_id, "source_id": trial_id, "system_a": left, "system_b": right}
+            for trial_id, left, right in trials
+        ],
+    }
+
+
+def _rater(key: dict, rater_id: str, choices: dict[str, str]) -> dict:
+    return {
+        "study_id": key["study_id"],
+        "rater_id": rater_id,
+        "answers": [
+            {
+                "trial_id": trial["id"],
+                "ratings": {criterion: choices[trial["id"]] for criterion in key["criteria"]},
+            }
+            for trial in key["trials"]
+        ],
+    }
+
+
+def _solve(matrix: list[list[float]], vector: list[float]) -> list[float]:
+    size = len(vector)
+    rows = [row[:] + [vector[index]] for index, row in enumerate(matrix)]
+    for column in range(size):
+        pivot = max(range(column, size), key=lambda row: abs(rows[row][column]))
+        rows[column], rows[pivot] = rows[pivot], rows[column]
+        for row in range(column + 1, size):
+            factor = rows[row][column] / rows[column][column]
+            for cell in range(column, size + 1):
+                rows[row][cell] -= factor * rows[column][cell]
+    solution = [0.0] * size
+    for row in range(size - 1, -1, -1):
+        partial = sum(rows[row][cell] * solution[cell] for cell in range(row + 1, size))
+        solution[row] = (rows[row][size] - partial) / rows[row][row]
+    return solution
+
+
+def _reference_bradley_terry(
+    count: int, observations: list[tuple[int, int, float]]
+) -> list[float]:
+    """Observation-by-observation Newton iteration, kept as a pure-Python oracle."""
+    theta = [0.0] * count
+    ridge = 1e-6
+    for _ in range(100):
+        gradient = [-ridge * value for value in theta]
+        information = [[ridge * (row == col) for col in range(count)] for row in range(count)]
+        for left, right, outcome in observations:
+            difference = min(30.0, max(-30.0, theta[left] - theta[right]))
+            probability = 1.0 / (1.0 + math.exp(-difference))
+            residual = outcome - probability
+            weight = probability * (1.0 - probability)
+            gradient[left] += residual
+            gradient[right] -= residual
+            information[left][left] += weight
+            information[right][right] += weight
+            information[left][right] -= weight
+            information[right][left] -= weight
+        delta = _solve([[cell + 1.0 / count for cell in row] for row in information], gradient)
+        theta = [value + step for value, step in zip(theta, delta, strict=True)]
+        mean = sum(theta) / count
+        theta = [value - mean for value in theta]
+        if max(abs(step) for step in delta) < 1e-9:
+            break
+    return theta
+
+
+def test_vectorized_bradley_terry_matches_pure_python_reference():
+    rng = random.Random(20260906)
+    systems = [f"system-{index}" for index in range(6)]
+    strengths = [rng.uniform(-1.5, 1.5) for _ in systems]
+    observations = []
+    for _ in range(240):
+        left, right = rng.sample(range(len(systems)), 2)
+        if rng.random() < 0.2:
+            outcome = 0.5
+        else:
+            edge = 1.0 / (1.0 + math.exp(strengths[right] - strengths[left]))
+            outcome = 1.0 if rng.random() < edge else 0.0
+        observations.append((left, right, outcome))
+
+    rows = _fit_bradley_terry(systems, observations)
+    reference = _reference_bradley_terry(len(systems), observations)
+
+    expected_ranks = {
+        value: rank
+        for rank, value in enumerate(sorted({round(v, 6) for v in reference}, reverse=True), 1)
+    }
+    for index, row in enumerate(rows):
+        assert row["system"] == systems[index]
+        assert row["log_strength"] == pytest.approx(reference[index], abs=1e-6)
+        assert row["vs_average"] == pytest.approx(
+            1.0 / (1.0 + math.exp(-reference[index])), abs=1e-6
+        )
+        assert row["rank"] == expected_ranks[round(reference[index], 6)]
+        assert row["separated"] is False
+    assert len(set(reference)) == len(systems)
+
+
+def test_all_tie_study_shares_rank_one_and_is_not_separated():
+    key = _key([("one", "alpha", "beta"), ("two", "beta", "alpha")])
+    raters = [
+        _rater(key, "listener-1", {"one": "tie", "two": "tie"}),
+        _rater(key, "listener-2", {"one": "tie", "two": "tie"}),
+    ]
+
+    result = analyze_listening_responses(key, raters, bootstrap_samples=10)
+
+    for row in result["rankings"]["overall"]:
+        assert row["rank"] == 1
+        assert row["log_strength"] == 0.0
+        assert row["vs_average"] == 0.5
+        assert row["separated"] is False
+        assert row["log_strength_ci95"] == [0.0, 0.0]
+
+
+def test_single_unanimous_vote_is_flagged_separated(tmp_path):
+    key = _key([("one", "alpha", "beta")])
+
+    result = analyze_listening_responses(key, [_rater(key, "listener", {"one": "A"})])
+
+    rows = result["rankings"]["overall"]
+    assert [row["system"] for row in rows] == ["alpha", "beta"]
+    assert [row["rank"] for row in rows] == [1, 2]
+    assert all(row["separated"] is True for row in rows)
+    assert rows[0]["log_strength"] > 5.0
+    write_listening_report(result, tmp_path)
+    markdown = (tmp_path / "report.md").read_text(encoding="utf-8")
+    assert "| 1* | 1 | alpha |" in markdown
+    assert "\\* Separated data:" in markdown
+    html_report = (tmp_path / "report.html").read_text(encoding="utf-8")
+    assert "<td>1*</td>" in html_report
+    assert "* Separated data:" in html_report
+
+
+def test_cyclic_preferences_are_not_separated_and_share_ranks():
+    key = _key([("ab", "a", "b"), ("bc", "b", "c"), ("ca", "c", "a")])
+    choices = {"ab": "A", "bc": "A", "ca": "A"}
+
+    result = analyze_listening_responses(key, [_rater(key, "listener", choices)])
+
+    rows = result["rankings"]["overall"]
+    assert [row["rank"] for row in rows] == [1, 1, 1]
+    assert all(row["separated"] is False for row in rows)
+    assert all(row["log_strength"] == 0.0 for row in rows)
+
+
+def test_bootstrap_runs_on_vectorized_fit(tmp_path):
+    key = _key([("ab", "a", "b"), ("bc", "b", "c"), ("ca", "c", "a")], DEFAULT_CRITERIA[:2])
+    raters = [
+        _rater(key, "listener-1", {"ab": "A", "bc": "A", "ca": "B"}),
+        _rater(key, "listener-2", {"ab": "A", "bc": "tie", "ca": "B"}),
+        _rater(key, "listener-3", {"ab": "B", "bc": "A", "ca": "A"}),
+    ]
+
+    result = analyze_listening_responses(key, raters, bootstrap_samples=25, bootstrap_seed=3)
+
+    assert result["bootstrap"]["enabled"] is True
+    for criterion in DEFAULT_CRITERIA[:2]:
+        rows = result["rankings"][criterion]
+        assert [row["system"] for row in rows] == ["a", "b", "c"]
+        assert [row["rank"] for row in rows] == [1, 2, 3]
+        assert all(row["separated"] is False for row in rows)
+        for row in rows:
+            low, high = row["log_strength_ci95"]
+            assert low <= high
+            assert len(row["preference_rate_ci95"]) == 2
+    write_listening_report(result, tmp_path)
+    assert "Separated data" not in (tmp_path / "report.md").read_text(encoding="utf-8")
+
+
+def test_null_note_normalizes_to_empty_string():
+    key = _key([("one", "alpha", "beta")])
+    response = _rater(key, "listener", {"one": "A"})
+    response["answers"][0]["note"] = None
+
+    validated = validate_response(response, key)
+
+    assert validated["answers"][0]["note"] == ""
+
+
+def test_non_string_submitted_at_is_rejected():
+    key = _key([("one", "alpha", "beta")])
+    response = _rater(key, "listener", {"one": "A"})
+    response["submitted_at"] = 1725580800
+
+    with pytest.raises(ValueError, match="submitted_at must be a string"):
+        validate_response(response, key)
+
+
+def test_public_study_file_is_rejected_as_organizer_key(tmp_path, write_wav):
+    comparisons = load_comparisons(_manifest(tmp_path, write_wav))
+    public_path, _, _ = build_listening_study(
+        comparisons, tmp_path / "study", title="Blind test", seed=1, repeat_fraction=0
+    )
+    public = json.loads(public_path.read_text(encoding="utf-8"))
+
+    with pytest.raises(ValueError, match="looks like the public study file"):
+        analyze_listening_responses(public, [])
 
 
 def test_study_separates_public_data_from_organizer_key(tmp_path, write_wav):

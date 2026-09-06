@@ -43,9 +43,16 @@ A tie is a first-class answer. Forcing a random A/B selection invents evidence.
 The report shows two complementary summaries. Preference rate counts a tie as
 half a win. Bradley–Terry estimation fits a global latent ordering from the
 pairwise outcomes and reports centered log strength plus the implied win
-probability against an average system. These numbers are meaningful only when
-the comparison graph connects the systems and the sample is sufficiently
-large; they are not universal quality scores.
+probability against an average system. The fit scores a tie as half a win for
+each side, so a tie contributes half of a win likelihood term in each
+direction, matching the preference-rate convention. Each ranking row carries a
+`separated` flag that is true when the maximum-likelihood estimate does not
+exist because some system or group of systems never lost or never won; the
+strengths shown are then a lightly ridge-regularized estimate whose magnitudes
+reflect the regularizer rather than the evidence, so read them as an ordering
+only (the report marks such rows with an asterisk). These numbers are
+meaningful only when the comparison graph connects the systems and the sample
+is sufficiently large; they are not universal quality scores.
 
 Repeat reliability compares the winning *system*, not the displayed A/B side,
 across hidden duplicate trials. This is essential because duplicate trials may

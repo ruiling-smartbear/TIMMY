@@ -1,6 +1,9 @@
 from __future__ import annotations
 
 import json
+import os
+import subprocess
+import sys
 
 import numpy as np
 
@@ -108,6 +111,90 @@ def test_listening_study_cli_builds_and_analyzes(tmp_path, write_wav):
     assert (report / "report.json").is_file()
     assert (report / "report.md").is_file()
     assert (report / "report.html").is_file()
+
+
+def test_init_listening_study_writes_utf8_under_c_locale(tmp_path, write_wav):
+    write_wav(tmp_path / "a.wav", np.zeros(8000))
+    write_wav(tmp_path / "b.wav", np.ones(8000) * 0.1)
+    prompt = "\u9759\u304b\u306a\u30d4\u30a2\u30ce\u66f2"  # quiet piano piece, in Japanese
+    comparisons = tmp_path / "comparisons.jsonl"
+    comparisons.write_text(
+        json.dumps(
+            {
+                "id": "one",
+                "prompt": prompt,
+                "audio_a": "a.wav",
+                "system_a": "alpha",
+                "audio_b": "b.wav",
+                "system_b": "beta",
+            },
+            ensure_ascii=False,
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+    study_dir = tmp_path / "study"
+    # Python 3.7+ coerces the C locale to UTF-8 mode; disable that so open() is ASCII.
+    env = {
+        **os.environ,
+        "LC_ALL": "C",
+        "LANG": "C",
+        "PYTHONUTF8": "0",
+        "PYTHONCOERCECLOCALE": "0",
+    }
+
+    completed = subprocess.run(
+        [
+            sys.executable,
+            "-m",
+            "music_eval",
+            "init-listening-study",
+            str(comparisons),
+            "--output",
+            str(study_dir),
+            "--repeat-fraction",
+            "0",
+        ],
+        env=env,
+        capture_output=True,
+        text=True,
+    )
+
+    assert completed.returncode == 0, completed.stderr
+    public = json.loads((study_dir / "study.json").read_text(encoding="utf-8"))
+    assert public["trials"][0]["prompt"] == prompt
+    key = json.loads((tmp_path / "study.organizer.json").read_text(encoding="utf-8"))
+    assert key["study_id"] == public["study_id"]
+    assert prompt in (study_dir / "index.html").read_text(encoding="utf-8")
+
+
+def test_analyze_listening_study_rejects_public_study_file_as_key(tmp_path, write_wav, capsys):
+    write_wav(tmp_path / "a.wav", np.zeros(8000))
+    write_wav(tmp_path / "b.wav", np.ones(8000) * 0.1)
+    comparisons = tmp_path / "comparisons.jsonl"
+    comparisons.write_text(
+        '{"id":"one","prompt":"gentle tone","audio_a":"a.wav","system_a":"alpha",'
+        '"audio_b":"b.wav","system_b":"beta"}\n'
+    )
+    study_dir = tmp_path / "study"
+    assert main(["init-listening-study", str(comparisons), "--output", str(study_dir)]) == 0
+    response_path = tmp_path / "response.json"
+    response_path.write_text(json.dumps({"study_id": "x", "rater_id": "r", "answers": []}))
+
+    exit_code = main(
+        [
+            "analyze-listening-study",
+            str(study_dir / "study.json"),
+            str(response_path),
+            "--output",
+            str(tmp_path / "report"),
+        ]
+    )
+
+    assert exit_code == 2
+    error = capsys.readouterr().err
+    assert "looks like the public study file" in error
+    assert ".organizer.json" in error
 
 
 def test_distribution_cli_writes_reports(tmp_path):
