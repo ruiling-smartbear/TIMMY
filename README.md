@@ -7,8 +7,8 @@ separate evidence instead of hiding them behind one universal score.
 
 The current release is a lightweight, offline foundation. It validates PCM WAV
 outputs, compares deterministic candidate/reference pairs, stratifies results
-by musical attributes, and exposes a plugin boundary for future CLAP, MuQ, FAD,
-and serving integrations.
+by musical attributes, and offers an optional Meta Audiobox Aesthetics plugin
+alongside a plugin boundary for future CLAP, MuQ, FAD, and serving integrations.
 
 ## Principles
 
@@ -104,6 +104,25 @@ music-eval evaluate manifest.jsonl --metrics integrity,pairwise
 Third-party packages can register plugins through the `music_eval.metrics`
 Python entry-point group. See [Plugin API](docs/plugin-api.md).
 
+### `audiobox_aesthetics` (optional)
+
+Install Meta's open no-reference aesthetic predictor separately so the base
+package stays small and never downloads a checkpoint implicitly:
+
+```bash
+python -m pip install -e '.[audiobox]'
+music-eval evaluate manifest.jsonl \
+  --metrics integrity,audiobox_aesthetics \
+  --output report
+```
+
+The plugin reports Content Enjoyment (CE), Content Usefulness (CU), Production
+Complexity (PC), and Production Quality (PQ). It follows the official 16 kHz
+mono, non-overlapping 10-second window preprocessing. In addition to the
+duration-weighted track score, it preserves every window score, the 10th
+percentile, minimum, and worst-window location. These learned estimates are
+diagnostic evidence, not pass/fail policy or a universal music-quality score.
+
 ## Grouped evidence
 
 Labels are multi-valued. One sample may belong to `genre=synthwave`,
@@ -136,7 +155,7 @@ exit code proves the gate catches the injected defect.
 
 1. Aligned serving-fidelity and repeatability adapters.
 2. CLAP contrastive prompt alignment with hard negatives.
-3. Optional per-sample learned quality metrics such as MuQ-Eval.
+3. Additional per-sample learned quality metrics such as MuQ-Eval.
 4. Corpus-level distribution metrics such as FAD/MAD.
 5. A/B listening studies and model-serving adapters.
 

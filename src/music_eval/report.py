@@ -23,17 +23,32 @@ def _integrity(result: EvaluationResult, key: str, default: Any = "—") -> Any:
     return metrics.get(key, default) if isinstance(metrics, dict) else default
 
 
+def _aesthetic(result: EvaluationResult, axis: str, default: Any = "—") -> Any:
+    metrics = result.metrics.get("audiobox_aesthetics")
+    if not isinstance(metrics, dict):
+        return default
+    scores = metrics.get("track_scores")
+    return scores.get(axis, default) if isinstance(scores, dict) else default
+
+
 def write_markdown_report(results: list[EvaluationResult], path: Path) -> None:
     payload = report_payload(results)
     summary = payload["summary"]
+    aesthetic_axes = (
+        ("CE", "CU", "PC", "PQ")
+        if any("audiobox_aesthetics" in result.metrics for result in results)
+        else ()
+    )
+    aesthetic_headers = "".join(f" {axis} |" for axis in aesthetic_axes)
+    aesthetic_rules = "".join("---:|" for _axis in aesthetic_axes)
     lines = [
         "# Music evaluation report",
         "",
         f"Total: **{summary['total']}** · Passed: **{summary['passed']}** · "
         f"Warnings: **{summary['warnings']}** · Failed: **{summary['failed']}**",
         "",
-        "| ID | Genre | Status | Duration | RMS | Longest dropout | Findings |",
-        "|---|---|---:|---:|---:|---:|---|",
+        f"| ID | Genre | Status | Duration | RMS | Longest dropout |{aesthetic_headers} Findings |",
+        f"|---|---|---:|---:|---:|---:|{aesthetic_rules}---|",
     ]
     for result in results:
         duration = _integrity(result, "duration_seconds")
@@ -43,11 +58,17 @@ def write_markdown_report(results: list[EvaluationResult], path: Path) -> None:
         findings = "; ".join(
             f"{finding.source}:{finding.code}" for finding in result.findings
         ) or "—"
+        aesthetic_cells = "".join(
+            f" {value if value == '—' else f'{float(value):.2f}'} |"
+            for axis in aesthetic_axes
+            for value in [_aesthetic(result, axis)]
+        )
         lines.append(
             f"| {_cell(result.id)} | {_cell(genres)} | {result.status} | "
             f"{duration if duration == '—' else f'{float(duration):.3f}s'} | "
             f"{rms if rms == '—' else f'{float(rms):.2f} dBFS'} | "
-            f"{longest if longest == '—' else f'{float(longest):.3f}s'} | "
+            f"{longest if longest == '—' else f'{float(longest):.3f}s'} |"
+            f"{aesthetic_cells} "
             f"{_cell(findings)} |"
         )
 
@@ -84,11 +105,21 @@ def write_markdown_report(results: list[EvaluationResult], path: Path) -> None:
 def write_html_report(results: list[EvaluationResult], path: Path) -> None:
     payload = report_payload(results)
     summary = payload["summary"]
+    aesthetic_axes = (
+        ("CE", "CU", "PC", "PQ")
+        if any("audiobox_aesthetics" in result.metrics for result in results)
+        else ()
+    )
+    aesthetic_headers = "".join(f"<th>{axis}</th>" for axis in aesthetic_axes)
     sample_rows = []
     for result in results:
         findings = ", ".join(
             f"{finding.source}:{finding.code}" for finding in result.findings
         ) or "—"
+        aesthetic_cells = "".join(
+            f"<td>{_html_number(_aesthetic(result, axis), '')}</td>"
+            for axis in aesthetic_axes
+        )
         sample_rows.append(
             "<tr>"
             f"<td><code>{escape(result.id)}</code></td>"
@@ -97,6 +128,7 @@ def write_html_report(results: list[EvaluationResult], path: Path) -> None:
             f"<td>{_html_number(_integrity(result, 'duration_seconds'), 's')}</td>"
             f"<td>{_html_number(_integrity(result, 'rms_dbfs'), ' dBFS')}</td>"
             f"<td>{_html_number(_integrity(result, 'longest_dropout_seconds'), 's')}</td>"
+            f"{aesthetic_cells}"
             f"<td>{escape(findings)}</td>"
             "</tr>"
         )
@@ -154,7 +186,8 @@ No universal aesthetic score.</p>
 <div class="card"><strong>{summary['failed']}</strong><span>Failed</span></div>
 </div>
 <section><h2>Samples</h2><div class="table-wrap"><table><thead><tr><th>ID</th><th>Genre</th>
-<th>Status</th><th>Duration</th><th>RMS</th><th>Longest dropout</th><th>Findings</th>
+<th>Status</th><th>Duration</th><th>RMS</th><th>Longest dropout</th>
+{aesthetic_headers}<th>Findings</th>
 </tr></thead><tbody>{''.join(sample_rows)}</tbody></table></div></section>
 {''.join(group_sections)}
 </main></body></html>

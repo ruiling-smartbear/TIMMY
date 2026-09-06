@@ -44,3 +44,15 @@ def test_grouped_summary_keeps_genres_separate():
     assert groups["genre"]["j-pop"]["finding_counts"] == {
         "integrity:duration_mismatch": 1
     }
+
+
+def test_grouped_summary_includes_audiobox_axes():
+    result = _result("j1", "pass", "j-pop", -18.0)
+    result.metrics["audiobox_aesthetics"] = {
+        "track_scores": {"CE": 7.0, "CU": 6.0, "PC": 5.0, "PQ": 8.0}
+    }
+
+    groups = grouped_summary([result])
+
+    assert groups["genre"]["j-pop"]["mean_audiobox_ce"] == 7.0
+    assert groups["genre"]["j-pop"]["mean_audiobox_pq"] == 8.0

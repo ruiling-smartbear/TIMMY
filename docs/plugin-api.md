@@ -42,3 +42,11 @@ music-eval evaluate manifest.jsonl --metrics integrity,example
 
 Plugin exceptions become attributed failures so batch evaluation can finish
 without allowing CI to pass.
+
+## Bundled optional learned metrics
+
+`audiobox_aesthetics` is bundled but imports neither PyTorch nor Meta's package
+until evaluation begins. Install it with `music-eval[audiobox]`. Its output
+records the checkpoint, package version, preprocessing contract, duration-
+weighted CE/CU/PC/PQ track scores, per-axis summaries, and every 10-second
+window. The plugin does not create findings or gates from learned scores.

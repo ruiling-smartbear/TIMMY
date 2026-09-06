@@ -62,6 +62,22 @@ def grouped_summary(
                         values_for_metric.append(float(metric_value))
                 if values_for_metric:
                     group[f"mean_{metric_name}"] = fmean(values_for_metric)
+            for axis in ("CE", "CU", "PC", "PQ"):
+                values_for_axis = []
+                for result in members:
+                    aesthetics = result.metrics.get("audiobox_aesthetics")
+                    if not isinstance(aesthetics, dict):
+                        continue
+                    track_scores = aesthetics.get("track_scores")
+                    if not isinstance(track_scores, dict):
+                        continue
+                    value_for_axis = track_scores.get(axis)
+                    if isinstance(value_for_axis, (int, float)) and not isinstance(
+                        value_for_axis, bool
+                    ):
+                        values_for_axis.append(float(value_for_axis))
+                if values_for_axis:
+                    group[f"mean_audiobox_{axis.lower()}"] = fmean(values_for_axis)
             groups[dimension][value] = group
     return groups
 
