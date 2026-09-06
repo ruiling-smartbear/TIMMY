@@ -171,7 +171,8 @@ class TemporalConsistencyMetric:
 
         feature_rows = []
         profiles = []
-        taper = np.hanning(bounds[0][1] - bounds[0][0])  # every window has the same length
+        # Every window has the same length. astype: numpy 2.2 types hanning as floating[Any].
+        taper = np.hanning(bounds[0][1] - bounds[0][0]).astype(np.float64)
         for start, end in bounds:
             features, profile = _spectral_features(mono[start:end], candidate.sample_rate, taper)
             feature_rows.append(
