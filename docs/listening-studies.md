@@ -51,6 +51,18 @@ Repeat reliability compares the winning *system*, not the displayed A/B side,
 across hidden duplicate trials. This is essential because duplicate trials may
 reverse sides. A study with no repeats reports reliability as unmeasured.
 
-The current implementation reports point estimates. Before using a study for a
-publication claim, add an a priori power plan and confidence intervals or a
-rater-level bootstrap appropriate to the sampling design.
+When at least two raters are available, the analyzer reports percentile 95%
+intervals from a seeded rater-level bootstrap. Whole raters—not individual
+answers—are resampled, preserving the dependence among one person's answers.
+These intervals capture rater-sampling uncertainty only; they do not capture
+uncertainty from prompt or corpus selection.
+
+The report also includes exact pairwise agreement between raters, the fraction
+of trials with unanimous choices, and raw A/B-side selection. A large side
+imbalance is a diagnostic to inspect the randomization and interface; it is not
+automatically proof of bias because finite randomization can place a stronger
+system on one side more often.
+
+Before using a study for a publication claim, define the exclusion policy and
+power/sample-size plan in advance. Bootstrap intervals cannot repair a biased
+prompt sample or an underpowered experimental design.

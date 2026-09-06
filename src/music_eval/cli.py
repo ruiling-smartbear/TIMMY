@@ -79,6 +79,8 @@ def build_parser() -> argparse.ArgumentParser:
     analyze.add_argument("organizer_key", type=Path)
     analyze.add_argument("responses", type=Path, nargs="+")
     analyze.add_argument("--output", type=Path, default=Path("listening-report"))
+    analyze.add_argument("--bootstrap-samples", type=int, default=1000)
+    analyze.add_argument("--bootstrap-seed", type=int, default=20260906)
 
     distribution = subparsers.add_parser(
         "compare-distributions", help="compare systems in a shared audio embedding space"
@@ -181,7 +183,12 @@ def _init_listening_study(args: argparse.Namespace) -> int:
 def _analyze_listening_study(args: argparse.Namespace) -> int:
     key = json.loads(args.organizer_key.read_text())
     responses = [json.loads(path.read_text()) for path in args.responses]
-    result = analyze_listening_responses(key, responses)
+    result = analyze_listening_responses(
+        key,
+        responses,
+        bootstrap_samples=args.bootstrap_samples,
+        bootstrap_seed=args.bootstrap_seed,
+    )
     write_listening_report(result, args.output)
     print(f"analyzed {result['raters']} rater(s) across {len(result['systems'])} systems")
     print(f"reports: {args.output / 'report.json'}, {args.output / 'report.md'}, and "

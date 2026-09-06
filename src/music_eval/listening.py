@@ -406,8 +406,129 @@ def _rank_trials(
     }
 
 
+def _bootstrap_rankings(
+    aggregate: dict[str, Any],
+    trials: dict[str, dict[str, Any]],
+    validated: list[dict[str, Any]],
+    criteria: list[str],
+    *,
+    samples: int,
+    seed: int,
+) -> dict[str, Any]:
+    if samples < 0:
+        raise ValueError("bootstrap_samples must be nonnegative")
+    if samples == 0:
+        return {"enabled": False, "reason": "disabled", "samples": 0, "seed": seed}
+    if len(validated) < 2:
+        return {
+            "enabled": False,
+            "reason": "at least two raters are required",
+            "samples": 0,
+            "seed": seed,
+        }
+    values: dict[str, dict[str, dict[str, list[float]]]] = {
+        criterion: {
+            system: {"log_strength": [], "preference_rate": []}
+            for system in aggregate["systems"]
+        }
+        for criterion in criteria
+    }
+    rng = np.random.default_rng(seed)
+    for _ in range(samples):
+        indices = rng.integers(0, len(validated), size=len(validated))
+        resampled = [validated[int(index)] for index in indices]
+        estimate = _rank_trials(trials, resampled, criteria)
+        for criterion, rows in estimate["rankings"].items():
+            for row in rows:
+                system_values = values[criterion][str(row["system"])]
+                system_values["log_strength"].append(float(row["log_strength"]))
+                system_values["preference_rate"].append(float(row["preference_rate"]))
+    for criterion, rows in aggregate["rankings"].items():
+        for row in rows:
+            system_values = values[criterion][str(row["system"])]
+            for metric in ("log_strength", "preference_rate"):
+                low, high = np.percentile(system_values[metric], [2.5, 97.5])
+                row[f"{metric}_ci95"] = [round(float(low), 6), round(float(high), 6)]
+    return {
+        "enabled": True,
+        "unit": "rater",
+        "samples": samples,
+        "seed": seed,
+        "interval": "percentile_95",
+        "captures": "rater sampling uncertainty only",
+    }
+
+
+def _inter_rater_agreement(
+    trials: dict[str, dict[str, Any]],
+    validated: list[dict[str, Any]],
+    criteria: list[str],
+) -> dict[str, Any]:
+    output: dict[str, Any] = {}
+    answer_maps = [
+        {answer["trial_id"]: answer for answer in response["answers"]}
+        for response in validated
+    ]
+    for criterion in criteria:
+        matching_pairs = 0
+        rater_pairs = 0
+        unanimous_trials = 0
+        for trial_id, trial in trials.items():
+            choices = []
+            for answer_map in answer_maps:
+                answer = answer_map[trial_id]
+                winner = _winner(answer["ratings"][criterion], trial)
+                choices.append(winner if winner is not None else "__tie__")
+            unanimous_trials += len(set(choices)) == 1
+            for left in range(len(choices)):
+                for right in range(left + 1, len(choices)):
+                    matching_pairs += choices[left] == choices[right]
+                    rater_pairs += 1
+        output[criterion] = {
+            "matching_pairs": matching_pairs,
+            "rater_pairs": rater_pairs,
+            "pairwise_agreement_rate": (
+                round(matching_pairs / rater_pairs, 6) if rater_pairs else None
+            ),
+            "unanimous_trials": unanimous_trials if rater_pairs else None,
+            "trials": len(trials),
+            "unanimous_trial_rate": (
+                round(unanimous_trials / len(trials), 6) if rater_pairs else None
+            ),
+        }
+    return output
+
+
+def _side_choice_diagnostics(
+    validated: list[dict[str, Any]], criteria: list[str]
+) -> dict[str, Any]:
+    output: dict[str, Any] = {}
+    for criterion in criteria:
+        counts = {"A": 0, "B": 0, "tie": 0}
+        for response in validated:
+            for answer in response["answers"]:
+                counts[answer["ratings"][criterion]] += 1
+        non_ties = counts["A"] + counts["B"]
+        output[criterion] = {
+            "counts": counts,
+            "side_a_rate_among_non_ties": (
+                round(counts["A"] / non_ties, 6) if non_ties else None
+            ),
+            "absolute_side_imbalance": (
+                round(abs(counts["A"] - counts["B"]) / non_ties, 6)
+                if non_ties
+                else None
+            ),
+        }
+    return output
+
+
 def analyze_listening_responses(
-    key: dict[str, Any], responses: Iterable[dict[str, Any]]
+    key: dict[str, Any],
+    responses: Iterable[dict[str, Any]],
+    *,
+    bootstrap_samples: int = 1000,
+    bootstrap_seed: int = 20260906,
 ) -> dict[str, Any]:
     trials = {trial["id"]: trial for trial in key["trials"]}
     validated = [validate_response(response, key) for response in responses]
@@ -417,6 +538,14 @@ def analyze_listening_responses(
     if len(set(rater_ids)) != len(rater_ids):
         raise ValueError("duplicate rater_id across response files")
     aggregate = _rank_trials(trials, validated, key["criteria"])
+    bootstrap = _bootstrap_rankings(
+        aggregate,
+        trials,
+        validated,
+        key["criteria"],
+        samples=bootstrap_samples,
+        seed=bootstrap_seed,
+    )
 
     repeat_trials: dict[str, list[str]] = defaultdict(list)
     for trial in trials.values():
@@ -461,6 +590,11 @@ def analyze_listening_responses(
         "raters": len(validated),
         "trials_per_rater": len(trials),
         **aggregate,
+        "bootstrap": bootstrap,
         "repeat_reliability": repeat_agreement,
+        "inter_rater_agreement": _inter_rater_agreement(
+            trials, validated, key["criteria"]
+        ),
+        "side_choice_diagnostics": _side_choice_diagnostics(validated, key["criteria"]),
         "strata": strata,
     }

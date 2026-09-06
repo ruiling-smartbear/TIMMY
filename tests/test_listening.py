@@ -13,6 +13,7 @@ from music_eval.listening import (
     load_comparisons,
     validate_response,
 )
+from music_eval.listening_report import write_listening_report
 from music_eval.listening_web import write_listening_interface
 
 
@@ -190,3 +191,47 @@ def test_analysis_rejects_duplicate_rater_ids(tmp_path, write_wav):
 
     with pytest.raises(ValueError, match="duplicate rater_id"):
         analyze_listening_responses(key, [response, response])
+
+
+def test_rater_bootstrap_agreement_and_side_diagnostics(tmp_path, write_wav):
+    comparisons = load_comparisons(_manifest(tmp_path, write_wav))
+    _, key_path, _ = build_listening_study(
+        comparisons,
+        tmp_path / "study",
+        title="Blind test",
+        seed=3,
+        repeat_fraction=1,
+    )
+    key = json.loads(key_path.read_text())
+    first = _response(key, "secret-beta")
+    second = json.loads(json.dumps(first))
+    second["rater_id"] = "listener-2"
+
+    result = analyze_listening_responses(
+        key, [first, second], bootstrap_samples=40, bootstrap_seed=5
+    )
+
+    assert result["bootstrap"] == {
+        "enabled": True,
+        "unit": "rater",
+        "samples": 40,
+        "seed": 5,
+        "interval": "percentile_95",
+        "captures": "rater sampling uncertainty only",
+    }
+    for criterion in DEFAULT_CRITERIA:
+        top = result["rankings"][criterion][0]
+        assert top["system"] == "secret-beta"
+        assert top["preference_rate_ci95"] == [1.0, 1.0]
+        assert len(top["log_strength_ci95"]) == 2
+        assert result["inter_rater_agreement"][criterion][
+            "pairwise_agreement_rate"
+        ] == 1.0
+        counts = result["side_choice_diagnostics"][criterion]["counts"]
+        assert sum(counts.values()) == 4
+    report_dir = tmp_path / "report"
+    write_listening_report(result, report_dir)
+    markdown = (report_dir / "report.md").read_text()
+    assert "40 rater-level bootstrap samples" in markdown
+    assert "inter-rater pair agreement" in markdown
+    assert "[100.0%, 100.0%]" in markdown

@@ -213,16 +213,19 @@ serve it with the public study.
 
 Responses submitted through the local server appear under
 `listening-study/responses/`. Without a server, the page offers a response JSON
-download instead. Analyze one or more response files with:
+download instead. In-progress answers are stored locally in the browser and
+restored after an accidental refresh. Analyze one or more response files with:
 
 ```bash
 music-eval analyze-listening-study listening-study.organizer.json \
-  listening-study/responses/*.json --output listening-report
+  listening-study/responses/*.json --output listening-report \
+  --bootstrap-samples 1000 --bootstrap-seed 20260906
 ```
 
 The report keeps overall preference, prompt alignment, musicality/structure,
 and production quality separate. Each criterion includes raw preference rate,
-Bradley–Terry strength, and repeat-trial agreement. See
+Bradley–Terry strength, rater-level 95% bootstrap intervals, hidden-repeat and
+cross-rater agreement, and an A/B side-choice diagnostic. See
 [Blind listening studies](docs/listening-studies.md) for design and sampling
 requirements.
 
@@ -292,7 +295,7 @@ exit code proves the gate catches the injected defect.
 3. Additional per-sample learned quality metrics such as MuQ-Eval.
 4. Higher-level beat, harmony, vocal, and section analysis.
 5. Calibrated encoder adapters for named FAD/MAD protocols.
-6. Multi-rater uncertainty intervals and power-planning helpers.
+6. Prospective power-planning helpers and prompt-level uncertainty intervals.
 
 Each layer will remain visible and independently disableable. Learned metrics
 will report model/checkpoint identity and will not become aesthetic ground
