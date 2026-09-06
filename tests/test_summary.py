@@ -68,3 +68,16 @@ def test_grouped_summary_includes_clap_alignment():
 
     assert groups["genre"]["j-pop"]["mean_clap_positive_similarity"] == 0.42
     assert groups["genre"]["j-pop"]["mean_clap_margin"] == 0.17
+
+
+def test_grouped_summary_includes_temporal_evidence():
+    result = _result("j1", "pass", "j-pop", -18.0)
+    result.metrics["temporal_consistency"] = {
+        "first_to_last": {"spectral_similarity": 0.65},
+        "nonlocal_repetition": {"near_duplicate_window_ratio": 0.25},
+    }
+
+    groups = grouped_summary([result])
+
+    assert groups["genre"]["j-pop"]["mean_first_to_last_spectral_similarity"] == 0.65
+    assert groups["genre"]["j-pop"]["mean_near_duplicate_window_ratio"] == 0.25

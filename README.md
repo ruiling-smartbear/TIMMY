@@ -143,6 +143,24 @@ cosine similarities and every window so a strong opening cannot conceal later
 prompt drift. Raw similarity has no universal pass threshold; hard-negative
 margin and within-case rank are the more interpretable comparisons.
 
+### `temporal_consistency`
+
+This CPU-only metric exposes changes across a full track without downloading a
+model. It reports two-second sliding-window RMS, spectral centroid, bandwidth,
+95% rolloff, flatness, and zero-crossing rate; adjacent transition size;
+first-to-last spectral drift; non-local near-duplicate evidence; and ending
+level/discontinuity evidence.
+
+```bash
+music-eval evaluate manifest.jsonl \
+  --metrics integrity,temporal_consistency \
+  --output report
+```
+
+Near-duplicate ratios are deliberately not failures: repeated choruses,
+minimalism, drones, and genuine generation collapse can produce similar signal
+patterns. Genre-aware policy and listening evidence must interpret the result.
+
 ## Grouped evidence
 
 Labels are multi-valued. One sample may belong to `genre=synthwave`,
@@ -176,8 +194,9 @@ exit code proves the gate catches the injected defect.
 1. Aligned serving-fidelity and repeatability adapters.
 2. Independent music-text alignment with MuQ-MuLan.
 3. Additional per-sample learned quality metrics such as MuQ-Eval.
-4. Corpus-level distribution metrics such as FAD/MAD.
-5. A/B listening studies and model-serving adapters.
+4. Higher-level beat, harmony, vocal, and section analysis.
+5. Corpus-level distribution metrics such as FAD/MAD.
+6. A/B listening studies and model-serving adapters.
 
 Each layer will remain visible and independently disableable. Learned metrics
 will report model/checkpoint identity and will not become aesthetic ground

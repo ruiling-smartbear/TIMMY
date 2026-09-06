@@ -97,6 +97,33 @@ def grouped_summary(
                         clap_values.append(float(clap_value))
                 if clap_values:
                     group[output_name] = fmean(clap_values)
+            for section, source_name, output_name in (
+                (
+                    "first_to_last",
+                    "spectral_similarity",
+                    "mean_first_to_last_spectral_similarity",
+                ),
+                (
+                    "nonlocal_repetition",
+                    "near_duplicate_window_ratio",
+                    "mean_near_duplicate_window_ratio",
+                ),
+            ):
+                temporal_values = []
+                for result in members:
+                    temporal = result.metrics.get("temporal_consistency")
+                    if not isinstance(temporal, dict):
+                        continue
+                    section_values = temporal.get(section)
+                    if not isinstance(section_values, dict):
+                        continue
+                    temporal_value = section_values.get(source_name)
+                    if isinstance(temporal_value, (int, float)) and not isinstance(
+                        temporal_value, bool
+                    ):
+                        temporal_values.append(float(temporal_value))
+                if temporal_values:
+                    group[output_name] = fmean(temporal_values)
             groups[dimension][value] = group
     return groups
 

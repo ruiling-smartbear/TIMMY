@@ -26,6 +26,10 @@ def test_reports_surface_optional_learned_metrics(tmp_path):
                     "positive_rank": 1,
                 }
             },
+            "temporal_consistency": {
+                "first_to_last": {"spectral_similarity": 0.65},
+                "nonlocal_repetition": {"near_duplicate_window_ratio": 0.25},
+            },
         },
     )
     markdown = tmp_path / "report.md"
@@ -36,7 +40,11 @@ def test_reports_surface_optional_learned_metrics(tmp_path):
 
     markdown_text = markdown.read_text()
     html_text = html.read_text()
-    assert "| CE | CU | PC | PQ | CLAP+ | Margin | Rank |" in markdown_text
-    assert "| 7.00 | 6.00 | 5.00 | 8.00 | 0.420 | 0.170 | 1 |" in markdown_text
+    assert "| CE | CU | PC | PQ | CLAP+ | Margin | Rank | First↔Last | Repeat |" in markdown_text
+    assert (
+        "| 7.00 | 6.00 | 5.00 | 8.00 | 0.420 | 0.170 | 1 | 0.650 | 25.0% |"
+        in markdown_text
+    )
     assert "<th>CE</th>" in html_text
     assert "<th>CLAP+</th>" in html_text
+    assert "<th>First↔Last</th>" in html_text

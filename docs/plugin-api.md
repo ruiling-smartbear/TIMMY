@@ -57,3 +57,9 @@ duration-weighted cosine similarity, hard-negative margin, and positive rank.
 The implementation records its checkpoint, Transformers version, device, and
 preprocessing contract. Missing prompts and unavailable dependencies are
 attributed plugin failures; low learned scores remain ungated evidence.
+
+`temporal_consistency` has no optional dependencies. It provides local spectral
+features, transition distributions, first-to-last drift, non-local repetition,
+and ending evidence. It intentionally produces no findings: a repeated chorus
+and a collapsed generation can look alike at this level, so downstream policy
+must use genre applicability and human or higher-level structural evidence.

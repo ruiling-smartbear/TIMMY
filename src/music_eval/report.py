@@ -39,6 +39,16 @@ def _clap(result: EvaluationResult, key: str, default: Any = "—") -> Any:
     return track.get(key, default) if isinstance(track, dict) else default
 
 
+def _temporal(
+    result: EvaluationResult, section: str, key: str, default: Any = "—"
+) -> Any:
+    metrics = result.metrics.get("temporal_consistency")
+    if not isinstance(metrics, dict):
+        return default
+    values = metrics.get(section)
+    return values.get(key, default) if isinstance(values, dict) else default
+
+
 def write_markdown_report(results: list[EvaluationResult], path: Path) -> None:
     payload = report_payload(results)
     summary = payload["summary"]
@@ -52,6 +62,9 @@ def write_markdown_report(results: list[EvaluationResult], path: Path) -> None:
     has_clap = any("clap_alignment" in result.metrics for result in results)
     clap_headers = " CLAP+ | Margin | Rank |" if has_clap else ""
     clap_rules = "---:|---:|---:|" if has_clap else ""
+    has_temporal = any("temporal_consistency" in result.metrics for result in results)
+    temporal_headers = " First↔Last | Repeat |" if has_temporal else ""
+    temporal_rules = "---:|---:|" if has_temporal else ""
     lines = [
         "# Music evaluation report",
         "",
@@ -59,8 +72,9 @@ def write_markdown_report(results: list[EvaluationResult], path: Path) -> None:
         f"Warnings: **{summary['warnings']}** · Failed: **{summary['failed']}**",
         "",
         f"| ID | Genre | Status | Duration | RMS | Longest dropout |"
-        f"{aesthetic_headers}{clap_headers} Findings |",
-        f"|---|---|---:|---:|---:|---:|{aesthetic_rules}{clap_rules}---|",
+        f"{aesthetic_headers}{clap_headers}{temporal_headers} Findings |",
+        f"|---|---|---:|---:|---:|---:|{aesthetic_rules}{clap_rules}"
+        f"{temporal_rules}---|",
     ]
     for result in results:
         duration = _integrity(result, "duration_seconds")
@@ -86,12 +100,23 @@ def write_markdown_report(results: list[EvaluationResult], path: Path) -> None:
             )
         else:
             clap_cells = ""
+        if has_temporal:
+            drift = _temporal(result, "first_to_last", "spectral_similarity")
+            repeated = _temporal(
+                result, "nonlocal_repetition", "near_duplicate_window_ratio"
+            )
+            temporal_cells = (
+                f" {drift if drift == '—' else f'{float(drift):.3f}'} |"
+                f" {repeated if repeated in ('—', None) else f'{float(repeated):.1%}'} |"
+            )
+        else:
+            temporal_cells = ""
         lines.append(
             f"| {_cell(result.id)} | {_cell(genres)} | {result.status} | "
             f"{duration if duration == '—' else f'{float(duration):.3f}s'} | "
             f"{rms if rms == '—' else f'{float(rms):.2f} dBFS'} | "
             f"{longest if longest == '—' else f'{float(longest):.3f}s'} |"
-            f"{aesthetic_cells}{clap_cells} "
+            f"{aesthetic_cells}{clap_cells}{temporal_cells} "
             f"{_cell(findings)} |"
         )
 
@@ -136,6 +161,8 @@ def write_html_report(results: list[EvaluationResult], path: Path) -> None:
     aesthetic_headers = "".join(f"<th>{axis}</th>" for axis in aesthetic_axes)
     has_clap = any("clap_alignment" in result.metrics for result in results)
     clap_headers = "<th>CLAP+</th><th>Margin</th><th>Rank</th>" if has_clap else ""
+    has_temporal = any("temporal_consistency" in result.metrics for result in results)
+    temporal_headers = "<th>First↔Last</th><th>Repeat</th>" if has_temporal else ""
     sample_rows = []
     for result in results:
         findings = ", ".join(
@@ -152,6 +179,17 @@ def write_html_report(results: list[EvaluationResult], path: Path) -> None:
             if has_clap
             else ""
         )
+        if has_temporal:
+            first_last = _temporal(result, "first_to_last", "spectral_similarity")
+            repeated = _temporal(
+                result, "nonlocal_repetition", "near_duplicate_window_ratio"
+            )
+            temporal_cells = (
+                f"<td>{_html_number(first_last, '')}</td>"
+                f"<td>{_html_percent(repeated)}</td>"
+            )
+        else:
+            temporal_cells = ""
         sample_rows.append(
             "<tr>"
             f"<td><code>{escape(result.id)}</code></td>"
@@ -162,6 +200,7 @@ def write_html_report(results: list[EvaluationResult], path: Path) -> None:
             f"<td>{_html_number(_integrity(result, 'longest_dropout_seconds'), 's')}</td>"
             f"{aesthetic_cells}"
             f"{clap_cells}"
+            f"{temporal_cells}"
             f"<td>{escape(findings)}</td>"
             "</tr>"
         )
@@ -220,7 +259,7 @@ No universal aesthetic score.</p>
 </div>
 <section><h2>Samples</h2><div class="table-wrap"><table><thead><tr><th>ID</th><th>Genre</th>
 <th>Status</th><th>Duration</th><th>RMS</th><th>Longest dropout</th>
-{aesthetic_headers}{clap_headers}<th>Findings</th>
+{aesthetic_headers}{clap_headers}{temporal_headers}<th>Findings</th>
 </tr></thead><tbody>{''.join(sample_rows)}</tbody></table></div></section>
 {''.join(group_sections)}
 </main></body></html>
@@ -232,6 +271,12 @@ def _html_number(value: Any, suffix: str) -> str:
     if not isinstance(value, (int, float)):
         return "—"
     return f"{value:.3f}{suffix}"
+
+
+def _html_percent(value: Any) -> str:
+    if not isinstance(value, (int, float)):
+        return "—"
+    return f"{value:.1%}"
 
 
 def write_reports(results: list[EvaluationResult], output_directory: Path) -> None:

@@ -7,12 +7,14 @@ from music_eval.plugins.base import MetricPlugin
 from music_eval.plugins.clap_alignment import ClapAlignmentMetric
 from music_eval.plugins.integrity import IntegrityMetric
 from music_eval.plugins.pairwise import PairwiseFidelityMetric
+from music_eval.plugins.temporal_consistency import TemporalConsistencyMetric
 
 BUILTINS: dict[str, type[MetricPlugin]] = {
     "audiobox_aesthetics": AudioboxAestheticsMetric,
     "clap_alignment": ClapAlignmentMetric,
     "integrity": IntegrityMetric,
     "pairwise": PairwiseFidelityMetric,
+    "temporal_consistency": TemporalConsistencyMetric,
 }
 
 
