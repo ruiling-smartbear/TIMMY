@@ -35,6 +35,7 @@ class IntegrityMetric:
                 "frames": candidate.frames,
                 "duration_seconds": candidate.duration_seconds,
                 "sample_width_bytes": candidate.sample_width_bytes,
+                "sample_format": candidate.sample_format,
             }
         )
         findings: list[Finding] = []

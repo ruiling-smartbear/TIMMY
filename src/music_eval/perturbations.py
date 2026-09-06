@@ -15,8 +15,13 @@ from music_eval.audio import AudioData, read_wav
 MAD_FIDELITY_SIGMAS = tuple(round(step * 0.02, 2) for step in range(11))
 
 
+def _sigma_text(sigma: float) -> str:
+    """Shortest decimal that round-trips ``sigma``, so distinct levels never collide."""
+    return np.format_float_positional(float(sigma), trim="0")
+
+
 def _sigma_slug(sigma: float) -> str:
-    return f"{sigma:.2f}".replace(".", "p")
+    return _sigma_text(sigma).replace(".", "p")
 
 
 def _write_pcm16(path: Path, samples: NDArray[np.float64], sample_rate: int) -> None:
@@ -39,6 +44,9 @@ def _validate_sigmas(sigmas: tuple[float, ...]) -> None:
         raise ValueError("noise sigmas must be finite and nonnegative")
     if tuple(sorted(sigmas)) != sigmas:
         raise ValueError("noise sigmas must be in increasing order")
+    slugs = [_sigma_slug(sigma) for sigma in sigmas]
+    if len(set(slugs)) != len(slugs):
+        raise ValueError(f"noise sigmas must map to unique file name slugs, got {slugs}")
 
 
 def _perturb(
@@ -104,7 +112,7 @@ def prepare_fidelity_perturbations(
                         "reference": str(reference_path.relative_to(output_dir)),
                         "labels": {
                             "condition": "gaussian-noise",
-                            "noise_sigma": f"{sigma:.2f}",
+                            "noise_sigma": _sigma_text(sigma),
                         },
                     },
                     separators=(",", ":"),

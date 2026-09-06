@@ -41,7 +41,7 @@ def _cosine(left: NDArray[np.float64], right: NDArray[np.float64]) -> float | No
 
 
 def _spectral_features(
-    samples: NDArray[np.float64], sample_rate: int
+    samples: NDArray[np.float64], sample_rate: int, taper: NDArray[np.float64]
 ) -> tuple[dict[str, float], NDArray[np.float64]]:
     rms = float(np.sqrt(np.mean(np.square(samples)))) if samples.size else 0.0
     if samples.size < 2:
@@ -57,7 +57,7 @@ def _spectral_features(
             np.zeros(PROFILE_BINS, dtype=np.float64),
         )
 
-    windowed = samples * np.hanning(samples.size)
+    windowed = samples * taper
     power = np.square(np.abs(np.fft.rfft(windowed)))
     frequencies = np.fft.rfftfreq(samples.size, d=1.0 / sample_rate)
     total_power = float(np.sum(power))
@@ -158,8 +158,9 @@ class TemporalConsistencyMetric:
 
         feature_rows = []
         profiles = []
+        taper = np.hanning(bounds[0][1] - bounds[0][0])  # every window has the same length
         for start, end in bounds:
-            features, profile = _spectral_features(mono[start:end], candidate.sample_rate)
+            features, profile = _spectral_features(mono[start:end], candidate.sample_rate, taper)
             feature_rows.append(
                 {
                     "start_seconds": start / candidate.sample_rate,
@@ -194,24 +195,23 @@ class TemporalConsistencyMetric:
             )
 
         minimum_separation_frames = round(self._nonlocal_seconds * candidate.sample_rate)
-        per_window_nonlocal_max: list[float | None] = [None] * len(bounds)
-        all_nonlocal_similarities = []
-        for left in range(len(bounds)):
-            for right in range(left + 1, len(bounds)):
-                if bounds[right][0] - bounds[left][0] < minimum_separation_frames:
-                    continue
-                similarity = _cosine(profiles[left], profiles[right])
-                if similarity is None:
-                    continue
-                all_nonlocal_similarities.append(similarity)
-                current_left = per_window_nonlocal_max[left]
-                current_right = per_window_nonlocal_max[right]
-                per_window_nonlocal_max[left] = (
-                    similarity if current_left is None else max(current_left, similarity)
-                )
-                per_window_nonlocal_max[right] = (
-                    similarity if current_right is None else max(current_right, similarity)
-                )
+        starts = np.array([start for start, _ in bounds])
+        profile_matrix = np.vstack(profiles)
+        # Profiles are unit-norm or all-zero, so the Gram matrix holds the cosines.
+        # A pair with a zero profile has no defined similarity (see _cosine) and is
+        # left out, the same way the adjacent-window loop above skips it.
+        similarities = profile_matrix @ profile_matrix.T
+        norms = np.linalg.norm(profile_matrix, axis=1)
+        pair_mask = (
+            np.triu(starts[None, :] - starts[:, None] >= minimum_separation_frames, k=1)
+            & (np.outer(norms, norms) > EPSILON)
+        )
+        all_nonlocal_similarities: list[float] = similarities[pair_mask].tolist()
+        nonlocal_mask = pair_mask | pair_mask.T
+        per_window_nonlocal_max = [
+            float(np.max(row[mask])) if mask.any() else None
+            for row, mask in zip(similarities, nonlocal_mask, strict=True)
+        ]
 
         comparable = [value for value in per_window_nonlocal_max if value is not None]
         duplicate_count = sum(

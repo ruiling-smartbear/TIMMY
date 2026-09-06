@@ -5,6 +5,7 @@ import json
 import numpy as np
 import pytest
 
+from music_eval import perturbations
 from music_eval.audio import read_wav
 from music_eval.perturbations import prepare_fidelity_perturbations
 
@@ -55,3 +56,33 @@ def test_fidelity_perturbations_reject_invalid_level_design(tmp_path, write_wav,
 
     with pytest.raises(ValueError):
         prepare_fidelity_perturbations([source], tmp_path / "out", sigmas=sigmas)
+
+
+def test_close_sigmas_get_distinct_files_ids_and_labels(tmp_path, write_wav):
+    source = tmp_path / "source.wav"
+    write_wav(source, np.zeros(100))
+    output = tmp_path / "close"
+
+    result = prepare_fidelity_perturbations([source], output, sigmas=(0.0, 0.001, 0.002, 0.1))
+    rows = [json.loads(line) for line in (output / "manifest.jsonl").read_text().splitlines()]
+
+    assert [row["id"] for row in rows] == [
+        "0000-source-noise-0p0",
+        "0000-source-noise-0p001",
+        "0000-source-noise-0p002",
+        "0000-source-noise-0p1",
+    ]
+    assert len({row["id"] for row in rows}) == len(rows) == 4
+    assert len(sorted((output / "audio").glob("*.wav"))) == 4
+    assert [row["labels"]["noise_sigma"] for row in rows] == ["0.0", "0.001", "0.002", "0.1"]
+    assert [case["noise_sigma"] for case in result["cases"]] == [0.0, 0.001, 0.002, 0.1]
+
+
+def test_colliding_sigma_slugs_are_rejected_before_writing(tmp_path, write_wav, monkeypatch):
+    source = tmp_path / "source.wav"
+    write_wav(source, np.zeros(100))
+    monkeypatch.setattr(perturbations, "_sigma_slug", lambda sigma: f"{sigma:.2f}")
+
+    with pytest.raises(ValueError, match=r"unique file name slugs.*0\.00.*0\.00"):
+        prepare_fidelity_perturbations([source], tmp_path / "out", sigmas=(0.001, 0.002))
+    assert not (tmp_path / "out").exists()

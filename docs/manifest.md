@@ -8,7 +8,7 @@ evaluation case.
 | Field | Required | Meaning |
 |---|---:|---|
 | `id` | yes | Unique, nonempty case identifier |
-| `audio` | yes | Candidate PCM WAV path, relative to the manifest |
+| `audio` | yes | Candidate WAV path (PCM 8-32 bit or IEEE float 32/64 bit, plain or extensible), relative to the manifest |
 | `prompt` | no | Generation prompt |
 | `negative_prompts` | no | Hard negatives for future alignment plugins |
 | `seed` | no | Integer generation seed |
