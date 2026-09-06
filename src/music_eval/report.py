@@ -11,7 +11,11 @@ from music_eval.summary import report_payload
 
 def write_json_report(results: list[EvaluationResult], path: Path) -> None:
     payload = report_payload(results)
-    path.write_text(json.dumps(payload, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
+    # allow_nan=False: a NaN or infinity raises here instead of writing invalid JSON.
+    path.write_text(
+        json.dumps(payload, indent=2, ensure_ascii=False, allow_nan=False) + "\n",
+        encoding="utf-8",
+    )
 
 
 def _cell(value: object) -> str:
@@ -142,8 +146,8 @@ def write_markdown_report(results: list[EvaluationResult], path: Path) -> None:
                 result, "nonlocal_repetition", "near_duplicate_window_ratio"
             )
             temporal_cells = (
-                f" {drift if drift == '—' else f'{float(drift):.3f}'} |"
-                f" {repeated if repeated in ('—', None) else f'{float(repeated):.1%}'} |"
+                f" {'—' if drift in ('—', None) else f'{float(drift):.3f}'} |"
+                f" {'—' if repeated in ('—', None) else f'{float(repeated):.1%}'} |"
             )
         else:
             temporal_cells = ""

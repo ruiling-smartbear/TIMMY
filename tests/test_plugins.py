@@ -4,7 +4,12 @@ import numpy as np
 
 from music_eval.evaluator import evaluate_entry
 from music_eval.models import ManifestEntry
-from music_eval.plugins import AnalysisConfig, MetricOutput, available_plugins
+from music_eval.plugins import (
+    AnalysisConfig,
+    MetricOutput,
+    available_plugins,
+    resolve_plugins,
+)
 
 
 class ConstantMetric:
@@ -68,3 +73,15 @@ def test_duplicate_plugin_names_are_rejected(tmp_path, write_wav):
         assert "must be unique" in str(error)
     else:
         raise AssertionError("duplicate plugin namespaces should fail")
+
+
+def test_explicit_empty_plugin_list_runs_no_plugins(tmp_path, write_wav):
+    path = write_wav(tmp_path / "tone.wav", np.full(8000, 0.1))
+
+    result = evaluate_entry(ManifestEntry(id="none", audio=path), plugins=[])
+
+    assert result.status == "pass"
+    assert result.metrics == {}
+    assert result.findings == []
+    assert resolve_plugins([]) == []
+    assert [plugin.name for plugin in resolve_plugins()] == ["integrity", "pairwise"]

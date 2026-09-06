@@ -31,10 +31,12 @@ def _window_bounds(frames: int, window_frames: int, hop_frames: int) -> list[tup
     return [(start, start + window_frames) for start in starts]
 
 
-def _cosine(left: NDArray[np.float64], right: NDArray[np.float64]) -> float:
+def _cosine(left: NDArray[np.float64], right: NDArray[np.float64]) -> float | None:
+    # An all-zero profile (silent window) has no direction, so similarity is
+    # undefined rather than zero; consumers skip None instead of counting drift.
     denominator = float(np.linalg.norm(left) * np.linalg.norm(right))
     if denominator <= EPSILON:
-        return 0.0
+        return None
     return float(np.dot(left, right) / denominator)
 
 
@@ -180,7 +182,8 @@ class TemporalConsistencyMetric:
             similarity = _cosine(profiles[index - 1], profiles[index])
             adjacent_rms_jumps.append(rms_jump)
             adjacent_centroid_jumps.append(centroid_jump)
-            adjacent_similarities.append(similarity)
+            if similarity is not None:
+                adjacent_similarities.append(similarity)
             transitions.append(
                 {
                     "at_seconds": feature_rows[index]["start_seconds"],
@@ -198,6 +201,8 @@ class TemporalConsistencyMetric:
                 if bounds[right][0] - bounds[left][0] < minimum_separation_frames:
                     continue
                 similarity = _cosine(profiles[left], profiles[right])
+                if similarity is None:
+                    continue
                 all_nonlocal_similarities.append(similarity)
                 current_left = per_window_nonlocal_max[left]
                 current_right = per_window_nonlocal_max[right]

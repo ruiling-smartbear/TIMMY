@@ -83,6 +83,19 @@ def test_grouped_summary_includes_temporal_evidence():
     assert groups["genre"]["j-pop"]["mean_near_duplicate_window_ratio"] == 0.25
 
 
+def test_grouped_summary_skips_undefined_temporal_similarity():
+    result = _result("j1", "pass", "j-pop", -18.0)
+    result.metrics["temporal_consistency"] = {
+        "first_to_last": {"spectral_similarity": None},
+        "nonlocal_repetition": {"near_duplicate_window_ratio": None},
+    }
+
+    group = grouped_summary([result])["genre"]["j-pop"]
+
+    assert "mean_first_to_last_spectral_similarity" not in group
+    assert "mean_near_duplicate_window_ratio" not in group
+
+
 def test_grouped_summary_includes_production_evidence():
     result = _result("j1", "pass", "j-pop", -18.0)
     result.metrics["production_quality"] = {

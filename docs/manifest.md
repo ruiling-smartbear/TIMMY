@@ -28,11 +28,22 @@ be one string or a list. Duplicate values are removed.
 | `sample_rate` | positive integer | Exact sample rate |
 | `channels` | positive integer | Exact channel count |
 | `max_clipped_ratio` | [0, 1] | Maximum near-full-scale sample ratio |
-| `max_silent_window_ratio` | [0, 1] | Maximum fraction of silent windows |
-| `max_dropout_seconds` | ≥ 0 | Maximum contiguous detected silence |
+| `max_silent_window_ratio` | [0, 1] | Maximum fraction of silent `--window-seconds` windows |
+| `max_dropout_seconds` | ≥ 0 | Maximum contiguous detected silence, sample-accurate |
 | `max_reference_duration_delta_seconds` | ≥ 0 | Reference duration difference |
 | `min_reference_waveform_correlation` | [-1, 1] | Aligned correlation |
 | `max_reference_nrmse` | ≥ 0 | Aligned waveform NRMSE |
+
+Silence means mono RMS at or below `--silence-dbfs` (default -50 dBFS).
+`max_silent_window_ratio` counts non-overlapping windows of `--window-seconds`
+(default 0.25 s); that option affects nothing else. Dropouts are located on a
+10 ms detection frame, and each start and end is then moved to the exact
+sample, so `max_dropout_seconds` compares against the true silent duration
+rather than a multiple of the window size. Only silent regions lasting at
+least `--minimum-dropout-seconds` (default 0.5 s) are reported.
+
+`duration_tolerance_seconds` may be omitted but not set to `null`; a null value
+is rejected with the row id.
 
 Waveform correlation and NRMSE require matching sample rate, frame count,
 channel count, and non-constant audio. Requesting these gates with incompatible

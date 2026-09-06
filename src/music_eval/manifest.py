@@ -30,7 +30,7 @@ def _is_number(value: object) -> bool:
     return not isinstance(value, bool) and isinstance(value, (int, float))
 
 
-def _expectations(raw: Any, line_number: int) -> Expectations:
+def _expectations(raw: Any, line_number: int, entry_id: str) -> Expectations:
     if raw is None:
         return Expectations()
     if not isinstance(raw, dict):
@@ -40,6 +40,13 @@ def _expectations(raw: Any, line_number: int) -> Expectations:
     if unknown:
         raise ValueError(
             f"line {line_number}: unknown expectation field(s): {', '.join(unknown)}"
+        )
+    # Every other expectation defaults to None (no gate); this one is a number the
+    # integrity gate compares against, so null would surface later as a TypeError.
+    if "duration_tolerance_seconds" in raw and raw["duration_tolerance_seconds"] is None:
+        raise ValueError(
+            f"line {line_number}: duration_tolerance_seconds must not be null "
+            f"(entry '{entry_id}'); omit it to keep the default"
         )
     expected = Expectations(**raw)
     nonnegative = {
@@ -173,7 +180,9 @@ def load_manifest(path: Path) -> list[ManifestEntry]:
                     seed=raw.get("seed"),
                     reference=_optional_path(raw.get("reference"), base),
                     labels=_labels(raw.get("labels"), line_number),
-                    expectations=_expectations(raw.get("expectations"), line_number),
+                    expectations=_expectations(
+                        raw.get("expectations"), line_number, entry_id
+                    ),
                 )
             )
     if not entries:

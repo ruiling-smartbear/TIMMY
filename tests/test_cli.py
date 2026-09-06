@@ -189,3 +189,16 @@ def test_prepare_fidelity_perturbations_cli_writes_audit_fixture(tmp_path, write
     ) == 0
     assert len((output / "manifest.jsonl").read_text().splitlines()) == 2
     assert json.loads((output / "provenance.json").read_text())["seed"] == 7
+
+
+def test_cli_rejects_empty_metric_list_instead_of_running_defaults(tmp_path, capsys):
+    manifest = tmp_path / "manifest.jsonl"
+    manifest.write_text('{"id":"x","audio":"x.wav"}\n')
+
+    exit_code = main(
+        ["evaluate", str(manifest), "--metrics", " , ", "--output", str(tmp_path / "out")]
+    )
+
+    assert exit_code == 2
+    assert "--metrics must name at least one plugin" in capsys.readouterr().err
+    assert not (tmp_path / "out").exists()

@@ -94,3 +94,27 @@ def test_markdown_report_renders_absent_alignment_margin_as_dash(tmp_path):
     text = markdown.read_text()
     assert "| 0.510 | — | 1 |" in text
     assert "None" not in text
+
+
+def test_markdown_report_renders_undefined_temporal_similarity_as_dash(tmp_path):
+    result = EvaluationResult(
+        id="song",
+        audio="song.wav",
+        status="pass",
+        metrics={
+            "temporal_consistency": {
+                "first_to_last": {"spectral_similarity": None},
+                "nonlocal_repetition": {"near_duplicate_window_ratio": None},
+            }
+        },
+    )
+    markdown = tmp_path / "report.md"
+    html = tmp_path / "report.html"
+
+    write_markdown_report([result], markdown)
+    write_html_report([result], html)
+
+    text = markdown.read_text()
+    assert "| song | — | pass | — | — | — | — | — | — |" in text
+    assert "None" not in text
+    assert "None" not in html.read_text()

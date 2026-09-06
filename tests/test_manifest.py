@@ -87,6 +87,17 @@ def test_rejects_invalid_expectation_values(tmp_path, field, value):
         load_manifest(manifest)
 
 
+def test_rejects_null_duration_tolerance_naming_field_and_row(tmp_path):
+    manifest = tmp_path / "manifest.jsonl"
+    manifest.write_text(
+        '{"id":"song-7","audio":"x.wav","expectations":'
+        '{"duration_seconds":2.0,"duration_tolerance_seconds":null}}\n'
+    )
+
+    with pytest.raises(ValueError, match="duration_tolerance_seconds.*song-7"):
+        load_manifest(manifest)
+
+
 def test_rejects_unknown_entry_field_to_prevent_silent_policy_typos(tmp_path):
     manifest = tmp_path / "manifest.jsonl"
     manifest.write_text(

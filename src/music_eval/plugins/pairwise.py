@@ -3,6 +3,7 @@ from __future__ import annotations
 from typing import Any
 
 import numpy as np
+from numpy.typing import NDArray
 
 from music_eval.audio import AudioData
 from music_eval.models import Finding, ManifestEntry
@@ -24,8 +25,8 @@ class PairwiseFidelityMetric:
             return MetricOutput()
 
         duration_delta = abs(candidate.duration_seconds - reference.duration_seconds)
-        candidate_rms = float(np.sqrt(np.mean(np.square(candidate.samples))))
-        reference_rms = float(np.sqrt(np.mean(np.square(reference.samples))))
+        candidate_rms = _rms(candidate.samples)
+        reference_rms = _rms(reference.samples)
         exact = bool(
             candidate.sample_rate == reference.sample_rate
             and candidate.samples.shape == reference.samples.shape
@@ -114,6 +115,11 @@ class PairwiseFidelityMetric:
                 )
             )
         return MetricOutput(metrics=metrics, findings=findings)
+
+
+def _rms(samples: NDArray[np.float64]) -> float:
+    # A zero-frame side has no mean; report 0.0 so the level delta below is None, not NaN.
+    return float(np.sqrt(np.mean(np.square(samples)))) if samples.size else 0.0
 
 
 def _rms_delta_db(candidate_rms: float, reference_rms: float) -> float | None:

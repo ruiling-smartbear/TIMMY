@@ -63,3 +63,21 @@ def test_short_audio_has_no_fake_transition_or_nonlocal_pair():
     assert metrics["transition_summary"]["spectral_similarity"] is None
     assert metrics["nonlocal_repetition"]["pair_count"] == 0
     assert metrics["nonlocal_repetition"]["near_duplicate_window_ratio"] is None
+
+
+def test_silent_opening_window_has_undefined_similarity_instead_of_maximum_drift():
+    samples = np.concatenate((np.zeros(2 * 4000), _tone(220, 10, 4000)))
+
+    metrics = _evaluate(samples)
+
+    assert metrics["first_to_last"]["spectral_similarity"] is None
+    assert metrics["transitions"][0]["spectral_similarity"] is None
+    assert all(
+        transition["spectral_similarity"] is not None
+        for transition in metrics["transitions"][1:]
+    )
+    assert metrics["transition_summary"]["spectral_similarity"]["minimum"] > 0.5
+    assert metrics["nonlocal_repetition"]["similarity"]["minimum"] > 0.5
+    # Pairs (0,8), (0,9), (0,10) touch the silent window and are skipped.
+    assert metrics["nonlocal_repetition"]["pair_count"] == 3
+    assert metrics["nonlocal_repetition"]["comparable_window_count"] == 4

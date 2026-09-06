@@ -7,6 +7,9 @@ from numpy.typing import NDArray
 
 from music_eval.models import Dropout
 
+# Dropouts are located on this fine frame grid, then refined to sample accuracy.
+DROPOUT_FRAME_SECONDS = 0.01
+
 
 def dbfs(value: float, floor_db: float = -120.0) -> float:
     if value <= 0.0:
@@ -28,6 +31,31 @@ def _mono_rms_windows(
     return np.asarray(rms_values), window_frames
 
 
+def _silent_windows(
+    samples: NDArray[np.float64],
+    sample_rate: int,
+    window_seconds: float,
+    silence_dbfs: float,
+) -> tuple[NDArray[np.bool_], int]:
+    rms_values, window_frames = _mono_rms_windows(samples, sample_rate, window_seconds)
+    silent = [dbfs(float(value)) <= silence_dbfs for value in rms_values]
+    return np.asarray(silent, dtype=bool), window_frames
+
+
+def _silent_runs(silent: NDArray[np.bool_]) -> list[tuple[int, int]]:
+    """Run-length encode consecutive silent windows as [start, stop) index pairs."""
+    padded = np.concatenate(([False], silent, [False]))
+    edges = np.flatnonzero(padded[1:] != padded[:-1]).reshape(-1, 2)
+    return [(int(start), int(stop)) for start, stop in edges]
+
+
+def _loud_sample_indices(
+    samples: NDArray[np.float64], start: int, stop: int, amplitude: float
+) -> NDArray[np.intp]:
+    """Indices, relative to ``start``, whose max-abs across channels exceeds ``amplitude``."""
+    return np.flatnonzero(np.max(np.abs(samples[start:stop]), axis=1) > amplitude)
+
+
 def detect_dropouts(
     samples: NDArray[np.float64],
     sample_rate: int,
@@ -36,31 +64,41 @@ def detect_dropouts(
     window_seconds: float,
     minimum_seconds: float,
 ) -> tuple[list[Dropout], float, float]:
-    rms_values, window_frames = _mono_rms_windows(
-        samples, sample_rate, window_seconds
+    # silent_window_ratio keeps the documented window grid. Dropouts are found on
+    # DROPOUT_FRAME_SECONDS frames and each boundary is then moved to the exact
+    # sample by inspecting the partial frame on either side of the silent run, so
+    # a dropout that straddles a window boundary is neither missed nor shortened.
+    silent_windows, _window_frames = _silent_windows(
+        samples, sample_rate, window_seconds, silence_dbfs
     )
-    silent = np.asarray([dbfs(float(value)) <= silence_dbfs for value in rms_values])
+    silent_frames, frame_samples = _silent_windows(
+        samples, sample_rate, DROPOUT_FRAME_SECONDS, silence_dbfs
+    )
+    amplitude = 10.0 ** (silence_dbfs / 20.0)
     dropouts: list[Dropout] = []
-    start_index: int | None = None
 
-    for index, is_silent in enumerate(np.append(silent, False)):
-        if is_silent and start_index is None:
-            start_index = index
-        elif not is_silent and start_index is not None:
-            start_frame = start_index * window_frames
-            end_frame = min(index * window_frames, samples.shape[0])
-            duration = (end_frame - start_frame) / sample_rate
-            if duration + 1e-12 >= minimum_seconds:
-                dropouts.append(
-                    Dropout(
-                        start_seconds=start_frame / sample_rate,
-                        end_seconds=end_frame / sample_rate,
-                        duration_seconds=duration,
-                    )
+    for first_frame, stop_frame in _silent_runs(silent_frames):
+        start = first_frame * frame_samples
+        end = min(stop_frame * frame_samples, samples.shape[0])
+        if start > 0:
+            loud = _loud_sample_indices(samples, start - frame_samples, start, amplitude)
+            if loud.size:
+                start = start - frame_samples + int(loud[-1]) + 1
+        if end < samples.shape[0]:
+            loud = _loud_sample_indices(samples, end, end + frame_samples, amplitude)
+            if loud.size:
+                end += int(loud[0])
+        duration = (end - start) / sample_rate
+        if duration + 1e-12 >= minimum_seconds:
+            dropouts.append(
+                Dropout(
+                    start_seconds=start / sample_rate,
+                    end_seconds=end / sample_rate,
+                    duration_seconds=duration,
                 )
-            start_index = None
+            )
 
-    silent_ratio = float(np.mean(silent)) if silent.size else 1.0
+    silent_ratio = float(np.mean(silent_windows)) if silent_windows.size else 1.0
     longest = max((dropout.duration_seconds for dropout in dropouts), default=0.0)
     return dropouts, silent_ratio, longest
 

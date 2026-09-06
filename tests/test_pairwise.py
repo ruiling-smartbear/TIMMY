@@ -1,9 +1,13 @@
 from __future__ import annotations
 
+import json
+
 import numpy as np
 
-from music_eval.evaluator import evaluate_entry
+from music_eval.evaluator import evaluate_entry, evaluate_manifest
+from music_eval.manifest import load_manifest
 from music_eval.models import Expectations, ManifestEntry
+from music_eval.report import write_json_report
 
 
 def _tone(seconds: float = 1.0, sample_rate: int = 8000) -> np.ndarray:
@@ -94,3 +98,31 @@ def test_missing_reference_is_reported_as_core_failure(tmp_path, write_wav):
 
     assert result.status == "fail"
     assert result.findings[0].code == "reference_wav_decode"
+
+
+def _reject_non_finite(token: str) -> float:
+    raise ValueError(f"non-finite JSON token: {token}")
+
+
+def test_zero_frame_candidate_writes_strict_json_with_null_deltas(tmp_path, write_wav):
+    write_wav(tmp_path / "candidate.wav", np.zeros(0))
+    write_wav(tmp_path / "reference.wav", _tone())
+    manifest = tmp_path / "manifest.jsonl"
+    manifest.write_text(
+        '{"id":"empty","audio":"candidate.wav","reference":"reference.wav"}\n'
+    )
+    output = tmp_path / "report.json"
+
+    write_json_report(evaluate_manifest(load_manifest(manifest)), output)
+
+    report = json.loads(output.read_text(), parse_constant=_reject_non_finite)
+    pairwise = report["results"][0]["metrics"]["pairwise"]
+    assert pairwise["reference_rms_delta_db"] is None
+    assert pairwise["reference_waveform_correlation"] is None
+    assert pairwise["reference_nrmse"] is None
+    assert pairwise["reference_duration_delta_seconds"] == 1.0
+    assert report["results"][0]["status"] == "fail"
+    assert "integrity:empty_audio" in {
+        f"{finding['source']}:{finding['code']}"
+        for finding in report["results"][0]["findings"]
+    }

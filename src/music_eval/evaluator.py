@@ -65,7 +65,9 @@ def evaluate_entry(
         except (OSError, ValueError) as error:
             return _failed_result(entry, "reference_wav_decode", str(error))
 
-    active_plugins = list(plugins or resolve_plugins())
+    # None means the defaults; an explicit empty list runs no plugins (the CLI rejects
+    # an empty --metrics list itself, so only library callers can choose this).
+    active_plugins = list(resolve_plugins() if plugins is None else plugins)
     plugin_names = [getattr(plugin, "name", None) for plugin in active_plugins]
     if any(not isinstance(name, str) or not name for name in plugin_names):
         raise ValueError("every metric plugin must have a nonempty string name")
@@ -113,7 +115,7 @@ def evaluate_manifest(
     config: AnalysisConfig | None = None,
     plugins: Iterable[MetricPlugin] | None = None,
 ) -> list[EvaluationResult]:
-    active_plugins = list(plugins or resolve_plugins())
+    active_plugins = list(resolve_plugins() if plugins is None else plugins)
     return [
         evaluate_entry(entry, config=config, plugins=active_plugins) for entry in entries
     ]

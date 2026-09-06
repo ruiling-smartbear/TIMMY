@@ -38,10 +38,33 @@ def build_parser() -> argparse.ArgumentParser:
     evaluate.add_argument("manifest", type=Path)
     evaluate.add_argument("--output", type=Path, default=Path("music-eval-report"))
     evaluate.add_argument("--metrics", default="integrity,pairwise")
-    evaluate.add_argument("--silence-dbfs", type=float, default=-50.0)
-    evaluate.add_argument("--window-seconds", type=float, default=0.25)
-    evaluate.add_argument("--minimum-dropout-seconds", type=float, default=0.5)
-    evaluate.add_argument("--clip-threshold", type=float, default=0.999)
+    evaluate.add_argument(
+        "--silence-dbfs",
+        type=float,
+        default=-50.0,
+        help="mono RMS at or below this level counts as silence (default: %(default)s)",
+    )
+    evaluate.add_argument(
+        "--window-seconds",
+        type=float,
+        default=0.25,
+        help="window length for silent_window_ratio only; dropouts are found on 10 ms "
+        "frames and their start and end are refined to the exact sample "
+        "(default: %(default)s)",
+    )
+    evaluate.add_argument(
+        "--minimum-dropout-seconds",
+        type=float,
+        default=0.5,
+        help="shortest sample-accurate silent region reported as a dropout "
+        "(default: %(default)s)",
+    )
+    evaluate.add_argument(
+        "--clip-threshold",
+        type=float,
+        default=0.999,
+        help="absolute sample value treated as clipped (default: %(default)s)",
+    )
     evaluate.add_argument(
         "--fail-on-warning", action="store_true", help="return non-zero for warnings"
     )

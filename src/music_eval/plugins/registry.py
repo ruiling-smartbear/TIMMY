@@ -30,7 +30,8 @@ def available_plugins() -> list[str]:
 
 
 def resolve_plugins(names: list[str] | None = None) -> list[MetricPlugin]:
-    requested = names or ["integrity", "pairwise"]
+    # None selects the defaults; an explicit empty list resolves to no plugins.
+    requested = ["integrity", "pairwise"] if names is None else names
     if len(set(requested)) != len(requested):
         raise ValueError("metric plugin names must be unique")
     external = {
