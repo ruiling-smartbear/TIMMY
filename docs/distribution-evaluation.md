@@ -28,6 +28,11 @@ preprocessing, and corpus sampling should be versioned beside the manifest.
 - **Fréchet embedding distance:** Gaussian mean/covariance distance. Lower is
   closer in this embedding space. It is sensitive to sample size and does not
   become Fréchet Audio Distance merely because the inputs represent audio.
+- **Kernel Audio Distance (KAD):** the unbiased finite-sample MMD estimator
+  from the official `kadtk` protocol, using a Gaussian kernel, the median
+  pairwise Euclidean distance in the reference set as bandwidth, and a scale
+  factor of 100. Lower is closer. Direction matters, and a small negative value
+  is valid rather than an error or a value to clip to zero.
 - **Candidate diversity:** mean pairwise cosine distance inside the candidate
   set. Low diversity can indicate collapse, but can also reflect a deliberately
   narrow test stratum.
@@ -43,6 +48,12 @@ No default pass/fail threshold is applied. Results should be compared using the
 same encoder, checkpoint, sampling plan, corpus size, and label distribution.
 Genre-level results are usually more actionable than one aggregate distance.
 
+TIMMY implements the KAD statistic over supplied embeddings but deliberately
+does not call every result “KAD” without qualification. The encoder is part of
+the protocol: the KAD paper and toolkit evaluate named audio encoders, while
+an arbitrary embedding may encode different properties. Reports therefore
+retain the embedding model and checkpoint beside the statistic.
+
 ## Sampling requirements
 
 Use at least dozens—and preferably hundreds—of independently generated clips
@@ -51,3 +62,9 @@ systems. Do not select candidate outputs after listening. A candidate and its
 reference corpus should use comparable durations and preprocessing. Report the
 sample count beside every metric; more data reduces but does not eliminate
 embedding-model bias.
+
+## References
+
+- [KAD: No More FAD!](https://arxiv.org/abs/2502.15602)
+- [Official `kadtk` implementation](https://github.com/YoonjinXD/kadtk)
+- [Adapting Fréchet Audio Distance for Generative Music Evaluation](https://arxiv.org/abs/2311.01616)

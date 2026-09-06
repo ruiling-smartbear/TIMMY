@@ -16,4 +16,4 @@ __all__ = [
     "MetricPlugin",
     "evaluate_entry",
 ]
-__version__ = "0.6.0"
+__version__ = "0.7.0"

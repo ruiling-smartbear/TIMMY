@@ -1,0 +1,14 @@
+cff-version: 1.2.0
+message: "If TIMMY supports your evaluation, cite this software and the original methods listed in docs/research/source-ledger.md."
+title: "TIMMY: Transparent, Interpretable, Modular Metrics for Your music"
+type: software
+authors:
+  - family-names: Gao
+    given-names: Ruilin
+version: 0.7.0
+date-released: 2026-09-06
+license: Apache-2.0
+abstract: >-
+  A reproducible evidence framework for generated music that keeps technical
+  integrity, prompt alignment, learned aesthetics, edit preservation,
+  distribution metrics, metric meta-evaluation, and human preference separate.

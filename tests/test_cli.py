@@ -142,3 +142,50 @@ def test_distribution_cli_writes_reports(tmp_path):
     assert result["comparisons"]["candidate"]["frechet_embedding_distance"] == 0
     assert (output / "report.md").is_file()
     assert (output / "report.html").is_file()
+
+
+def test_metric_ordering_cli_writes_reports(tmp_path):
+    manifest = tmp_path / "ordering.jsonl"
+    rows = [
+        {
+            "id": f"noise-{level}",
+            "condition": "white-noise",
+            "metric": "distance",
+            "level": level,
+            "score": score,
+            "expected_direction": "increase",
+        }
+        for level, score in ((0.0, 0.1), (0.1, 0.4), (0.2, 0.8))
+    ]
+    manifest.write_text("".join(json.dumps(row) + "\n" for row in rows))
+    output = tmp_path / "ordering-report"
+
+    assert main(
+        ["analyze-metric-ordering", str(manifest), "--output", str(output)]
+    ) == 0
+    result = json.loads((output / "report.json").read_text())
+    assert result["groups"][0]["kendall_tau_b"] == 1.0
+    assert (output / "report.md").is_file()
+    assert (output / "report.html").is_file()
+
+
+def test_prepare_fidelity_perturbations_cli_writes_audit_fixture(tmp_path, write_wav):
+    source = tmp_path / "source.wav"
+    write_wav(source, np.zeros(100))
+    output = tmp_path / "perturbations"
+
+    assert main(
+        [
+            "prepare-fidelity-perturbations",
+            str(source),
+            "--output",
+            str(output),
+            "--sigmas",
+            "0",
+            "0.1",
+            "--seed",
+            "7",
+        ]
+    ) == 0
+    assert len((output / "manifest.jsonl").read_text().splitlines()) == 2
+    assert json.loads((output / "provenance.json").read_text())["seed"] == 7

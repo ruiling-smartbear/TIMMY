@@ -206,8 +206,11 @@ instruction. Align the two tracks, then report:
 - timing displacement and duration changes outside the edit;
 - perceptual A/B ratings focused on seam visibility.
 
-Metamorphic fixtures can insert known clean and broken joins. This is one of
-the clearest unoccupied niches in existing open music evaluation stacks.
+Metamorphic fixtures can insert known clean and broken joins. MuseCPBench and
+its MuseCPEval implementation now cover global preservation of harmony,
+rhythm, structure, melody, and timbre. The remaining TIMMY niche is
+region-aware edit success: isolating the declared interval, checking outside
+preservation, and testing whether both boundary seams are audible.
 
 ### 4. `cover_invariance` — two objectives that must not be averaged
 
@@ -231,6 +234,11 @@ Compare 30-second, two-minute, four-minute, and eight-minute generations with
 matched prompts. Report survival to a declared quality boundary as well as
 mean scores. This directly tests a long-form claim without allowing a polished
 opening to conceal a broken ending.
+
+TIMMY implements the matched prompt/seed manifest with
+`music-eval init-longform-study`. The hazard-like degradation estimator and
+listener-calibrated boundary remain proposed; the protocol generator must not
+be reported as though those scientific results already exist.
 
 ### 6. `stem_quality` — evaluate a generative workstation
 

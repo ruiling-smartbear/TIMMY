@@ -249,9 +249,9 @@ not as a runtime dependency or required pull-request check.
 
 ## Primary references
 
-- [librosa beat tracking](https://librosa.org/doc/latest/generated/librosa.beat.beat_track.html),
-  [CQT chroma](https://librosa.org/doc/latest/generated/librosa.feature.chroma_cqt.html),
-  and [pYIN](https://librosa.org/doc/latest/generated/librosa.pyin.html)
+- [librosa beat tracking](https://librosa.org/doc/0.10.2/generated/librosa.beat.beat_track.html),
+  [CQT chroma](https://librosa.org/doc/0.10.2/generated/librosa.feature.chroma_cqt.html),
+  and [pYIN](https://librosa.org/doc/0.10.2/generated/librosa.pyin.html)
 - [Essentia RhythmExtractor2013](https://essentia.upf.edu/reference/std_RhythmExtractor2013.html),
   [KeyExtractor](https://essentia.upf.edu/reference/std_KeyExtractor.html), and
   [ChordsDetection](https://essentia.upf.edu/reference/std_ChordsDetection.html)

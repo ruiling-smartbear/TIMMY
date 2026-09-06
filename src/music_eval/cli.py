@@ -18,7 +18,11 @@ from music_eval.listening import (
 from music_eval.listening_report import write_listening_report
 from music_eval.listening_server import serve_study
 from music_eval.listening_web import write_listening_interface
+from music_eval.longform import DEFAULT_LONGFORM_DURATIONS, write_longform_manifest
 from music_eval.manifest import load_manifest
+from music_eval.meta_evaluation import analyze_metric_ordering, load_ordering_manifest
+from music_eval.meta_evaluation_report import write_meta_evaluation_report
+from music_eval.perturbations import MAD_FIDELITY_SIGMAS, prepare_fidelity_perturbations
 from music_eval.plugins import AnalysisConfig, available_plugins, resolve_plugins
 from music_eval.report import write_reports
 from music_eval.suites import SUITES, suite_names, write_suite_manifest
@@ -57,6 +61,22 @@ def build_parser() -> argparse.ArgumentParser:
     init_suite.add_argument("--channels", type=int)
     init_suite.add_argument("--force", action="store_true", help="overwrite output")
 
+    longform = subparsers.add_parser(
+        "init-longform-study",
+        help="write matched prompt/seed cases at increasing target durations",
+    )
+    longform.add_argument("output", type=Path)
+    longform.add_argument("--suite", default="generative-music-v1")
+    longform.add_argument(
+        "--durations", type=float, nargs="+", default=list(DEFAULT_LONGFORM_DURATIONS)
+    )
+    longform.add_argument("--seeds", type=int, nargs="+", default=[9, 17])
+    longform.add_argument("--case-ids", nargs="+")
+    longform.add_argument("--audio-directory", default="outputs")
+    longform.add_argument("--sample-rate", type=int)
+    longform.add_argument("--channels", type=int)
+    longform.add_argument("--force", action="store_true", help="overwrite output")
+
     init_study = subparsers.add_parser(
         "init-listening-study", help="build an anonymous pairwise listening study"
     )
@@ -89,6 +109,26 @@ def build_parser() -> argparse.ArgumentParser:
     distribution.add_argument("--reference-system", required=True)
     distribution.add_argument("--neighbors", type=int, default=3)
     distribution.add_argument("--output", type=Path, default=Path("distribution-report"))
+
+    meta_evaluation = subparsers.add_parser(
+        "analyze-metric-ordering",
+        help="measure whether metric scores follow known degradation levels",
+    )
+    meta_evaluation.add_argument("manifest", type=Path)
+    meta_evaluation.add_argument(
+        "--output", type=Path, default=Path("metric-ordering-report")
+    )
+
+    perturbations = subparsers.add_parser(
+        "prepare-fidelity-perturbations",
+        help="create deterministic Gaussian-noise metric-audit fixtures",
+    )
+    perturbations.add_argument("sources", type=Path, nargs="+")
+    perturbations.add_argument("--output", type=Path, required=True)
+    perturbations.add_argument("--seed", type=int, default=20260906)
+    perturbations.add_argument(
+        "--sigmas", type=float, nargs="+", default=list(MAD_FIDELITY_SIGMAS)
+    )
     return parser
 
 
@@ -160,6 +200,22 @@ def _init_suite(args: argparse.Namespace) -> int:
     return 0
 
 
+def _init_longform_study(args: argparse.Namespace) -> int:
+    count = write_longform_manifest(
+        args.suite,
+        args.output,
+        durations_seconds=tuple(args.durations),
+        seeds=tuple(args.seeds),
+        audio_directory=args.audio_directory,
+        case_ids=None if args.case_ids is None else tuple(args.case_ids),
+        sample_rate=args.sample_rate,
+        channels=args.channels,
+        overwrite=args.force,
+    )
+    print(f"wrote {count} matched long-form cases to {args.output}")
+    return 0
+
+
 def _init_listening_study(args: argparse.Namespace) -> int:
     if not math.isfinite(args.repeat_fraction):
         raise ValueError("--repeat-fraction must be finite")
@@ -211,6 +267,25 @@ def _compare_distributions(args: argparse.Namespace) -> int:
     return 0
 
 
+def _analyze_metric_ordering(args: argparse.Namespace) -> int:
+    result = analyze_metric_ordering(load_ordering_manifest(args.manifest))
+    write_meta_evaluation_report(result, args.output)
+    print(f"analyzed {len(result['groups'])} metric-condition group(s)")
+    print(
+        f"reports: {args.output / 'report.json'}, {args.output / 'report.md'}, "
+        f"and {args.output / 'report.html'}"
+    )
+    return 0
+
+
+def _prepare_fidelity_perturbations(args: argparse.Namespace) -> int:
+    result = prepare_fidelity_perturbations(
+        args.sources, args.output, sigmas=tuple(args.sigmas), seed=args.seed
+    )
+    print(f"wrote {len(result['cases'])} perturbation case(s) to {args.output}")
+    return 0
+
+
 def main(argv: list[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
     try:
@@ -218,6 +293,8 @@ def main(argv: list[str] | None = None) -> int:
             return _evaluate(args)
         if args.command == "init-suite":
             return _init_suite(args)
+        if args.command == "init-longform-study":
+            return _init_longform_study(args)
         if args.command == "init-listening-study":
             return _init_listening_study(args)
         if args.command == "serve-listening-study":
@@ -229,6 +306,10 @@ def main(argv: list[str] | None = None) -> int:
             return _analyze_listening_study(args)
         if args.command == "compare-distributions":
             return _compare_distributions(args)
+        if args.command == "analyze-metric-ordering":
+            return _analyze_metric_ordering(args)
+        if args.command == "prepare-fidelity-perturbations":
+            return _prepare_fidelity_perturbations(args)
         if args.command == "list-metrics":
             print("\n".join(available_plugins()))
             return 0

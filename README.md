@@ -1,6 +1,13 @@
-# music-eval
+<p align="center">
+  <img src="assets/timmy-logo-horizontal.png" alt="TIMMY" width="620">
+</p>
 
-`music-eval` is a reproducible, explainable evaluation framework for generated
+# TIMMY
+
+**Transparent, Interpretable, Modular Metrics for Your music.**
+
+TIMMY (`music-eval` on the command line) is a reproducible, explainable
+evaluation framework for generated
 music. It keeps technical integrity, serving fidelity, prompt adherence,
 learned quality estimates, distribution metrics, and human preference as
 separate evidence instead of hiding them behind one universal score.
@@ -8,8 +15,8 @@ separate evidence instead of hiding them behind one universal score.
 The current release is a lightweight, offline foundation. It validates PCM WAV
 outputs, compares deterministic candidate/reference pairs, stratifies results
 by musical attributes, and offers optional Meta Audiobox Aesthetics, CLAP, and
-MuQ-MuLan alignment plugins alongside a boundary for future FAD and serving
-integrations.
+MuQ-MuLan alignment plugins plus MuseCPEval edit-preservation evidence. It also
+ships corpus-distance and metric-audit tools without bundling a checkpoint.
 
 ## Principles
 
@@ -79,6 +86,26 @@ can fill those paths without coupling its dependencies to this project.
 music-eval list-suites
 music-eval list-metrics
 ```
+
+## Prepare a matched long-form study
+
+Long-form claims need matched controls. This command holds each suite prompt
+and seed fixed while varying only the requested duration across 30 seconds,
+two minutes, four minutes, and eight minutes:
+
+```bash
+music-eval init-longform-study longform.jsonl \
+  --case-ids orchestral-epic ambient-drone \
+  --seeds 9 17 \
+  --audio-directory outputs
+```
+
+The manifest records a stable `longform_group` and the target duration on every
+row. Generate each placeholder, then run window-preserving metrics such as
+`temporal_consistency`, `clap_alignment`, and `audiobox_aesthetics`. This
+prepares a controlled duration curve; it does not by itself prove musical form
+or decide a universal failure threshold. Those claims still need blinded,
+genre-stratified listening evidence.
 
 ## Built-in metrics
 
@@ -274,11 +301,59 @@ and k-NN precision/recall/density/coverage when the sample count is sufficient.
 The same comparison is repeated by genre and every other supplied label when
 both sides have at least two examples.
 
+Reports also include Kernel Audio Distance (KAD), using the finite-sample
+Gaussian-kernel estimator and reference-derived median bandwidth from the
+official `kadtk` implementation. KAD can be slightly negative for finite
+samples; lower is better only within one pinned encoder, checkpoint,
+preprocessing pipeline, and reference corpus.
+
 The command intentionally accepts embeddings rather than silently choosing or
 downloading an encoder. It rejects mixed checkpoints and dimensions. Its
 Fréchet result is **not automatically FAD**; that name is justified only when a
 specific audio embedding and preprocessing protocol defines it. See
 [Distribution evaluation](docs/distribution-evaluation.md).
+
+## Music-edit context preservation
+
+TIMMY exposes a version-pinned adapter for MuseCPEval rather than copying its
+algorithms. It keeps harmony/tonality, rhythm/meter, structural form,
+melody/motif, and timbre/texture as five separate facets:
+
+```bash
+python -m pip install -e '.[editing]'
+music-eval evaluate edits.jsonl \
+  --metrics integrity,musecp_preservation \
+  --output edit-report
+```
+
+Each edit case uses `reference` for the original and `audio` for the edited
+track. These scores test context preservation. They do not prove that the
+requested change succeeded inside the edited region, so edit-success and seam
+listening evidence remain separate requirements.
+
+## Meta-evaluate the metrics
+
+A metric should first prove that it notices a controlled change. TIMMY accepts
+replicated scores at ordered perturbation levels and reports Kendall tau-b,
+ordered-pair accuracy, ties, and per-level variation:
+
+```bash
+music-eval analyze-metric-ordering metric-scores.jsonl \
+  --output metric-ordering-report
+```
+
+This implements the analysis layer behind the controlled ordering tests used
+by MAD/MusicPrefs. Sensitivity to one perturbation is necessary evidence, not
+proof of general music quality. See
+[Metric meta-evaluation](docs/metric-meta-evaluation.md).
+
+For a deterministic local fidelity audit, TIMMY also generates the paper's
+reported Gaussian-noise strength sequence and a provenance manifest:
+
+```bash
+music-eval prepare-fidelity-perturbations clean/*.wav \
+  --output fidelity-audit --seed 20260906
+```
 
 ## Grouped evidence
 
@@ -311,16 +386,22 @@ exit code proves the gate catches the injected defect.
 - [Music-AI evaluation landscape and product ideas](docs/music-evaluation-landscape.md)
 - [Blind listening studies](docs/listening-studies.md)
 - [Distribution evaluation](docs/distribution-evaluation.md)
+- [Metric meta-evaluation](docs/metric-meta-evaluation.md)
+- [Dataset selection and licensing](docs/datasets.md)
+- [Qualification record](docs/qualification.md)
+- [TIMMY RFC 0001](docs/rfcs/0001-timmy-evidence-framework.md)
+- [Research source ledger](docs/research/source-ledger.md)
 - [Contributing](CONTRIBUTING.md)
 
 ## Roadmap
 
-1. Aligned serving-fidelity and repeatability adapters.
-2. Independent music-text alignment with MuQ-MuLan.
-3. Additional per-sample learned quality metrics such as MuQ-Eval.
-4. Higher-level beat, harmony, vocal, and section analysis.
+1. Claim cards and paired counterfactual control studies.
+2. Region-aware edit success and boundary-seam analysis around MuseCPEval.
+3. Long-form degradation analysis and listener-calibrated onset thresholds on
+   top of the implemented matched-duration manifest protocol.
+4. Vocal intelligibility and phrasing evidence with explicit separator/ASR versions.
 5. Calibrated encoder adapters for named FAD/MAD protocols.
-6. Prospective power-planning helpers and prompt-level uncertainty intervals.
+6. Prospective power planning and prompt-level uncertainty intervals.
 
 Each layer will remain visible and independently disableable. Learned metrics
 will report model/checkpoint identity and will not become aesthetic ground
@@ -338,3 +419,11 @@ pytest
 ## License
 
 Apache-2.0.
+
+## Citation
+
+Use [CITATION.cff](CITATION.cff) for TIMMY itself and cite every underlying
+metric or dataset used in a reported campaign. The
+[research source ledger](docs/research/source-ledger.md) links the authoritative
+method, model, dataset, and standards sources; TIMMY's citation does not replace
+theirs.

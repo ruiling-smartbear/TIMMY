@@ -12,6 +12,7 @@ def _row(system: str, metrics: dict[str, Any]) -> str:
     return (
         f"| {system} | {metrics['candidate_samples']} | "
         f"{metrics['frechet_embedding_distance']:.4f} | "
+        f"{metrics['kernel_audio_distance']:.4f} | "
         f"{metrics['candidate_diversity_mean_cosine_distance']:.4f} | "
         f"{metrics['candidate_to_reference_nearest']['mean']:.4f} | "
         f"{metrics['reference_to_candidate_nearest']['mean']:.4f} | "
@@ -35,8 +36,8 @@ def write_distribution_report(result: dict[str, Any], output_dir: Path) -> None:
         "> Fréchet embedding distance is not automatically FAD. Its interpretation depends on the "
         "declared embedding model, checkpoint, preprocessing, and corpus protocol.",
         "",
-        "| System | N | Fréchet ↓ | Diversity | Candidate→ref ↓ | Ref→candidate ↓ | Precision | Recall |",
-        "| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |",
+        "| System | N | Fréchet ↓ | KAD ↓ | Diversity | Candidate→ref ↓ | Ref→candidate ↓ | Precision | Recall |",
+        "| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |",
     ]
     for system, metrics in result["comparisons"].items():
         lines.append(_row(system, metrics))
@@ -47,8 +48,8 @@ def write_distribution_report(result: dict[str, Any], output_dir: Path) -> None:
                 [
                     f"### {value}",
                     "",
-                    "| System | N | Fréchet ↓ | Diversity | Candidate→ref ↓ | Ref→candidate ↓ | Precision | Recall |",
-                    "| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |",
+                    "| System | N | Fréchet ↓ | KAD ↓ | Diversity | Candidate→ref ↓ | Ref→candidate ↓ | Precision | Recall |",
+                    "| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |",
                 ]
             )
             for system, metrics in comparisons.items():
@@ -63,12 +64,13 @@ def write_distribution_report(result: dict[str, Any], output_dir: Path) -> None:
             rows.append(
                 f"<tr><td>{html.escape(system)}</td><td>{metrics['candidate_samples']}</td>"
                 f"<td>{metrics['frechet_embedding_distance']:.4f}</td>"
+                f"<td>{metrics['kernel_audio_distance']:.4f}</td>"
                 f"<td>{metrics['candidate_diversity_mean_cosine_distance']:.4f}</td>"
                 f"<td>{metrics['candidate_to_reference_nearest']['mean']:.4f}</td>"
                 f"<td>{metrics['reference_to_candidate_nearest']['mean']:.4f}</td>"
                 f"<td>{manifold.get('precision', '—')}</td><td>{manifold.get('recall', '—')}</td></tr>"
             )
-        return "<table><thead><tr><th>System</th><th>N</th><th>Fréchet ↓</th><th>Diversity</th><th>Candidate→ref ↓</th><th>Ref→candidate ↓</th><th>Precision</th><th>Recall</th></tr></thead><tbody>" + "".join(rows) + "</tbody></table>"
+        return "<table><thead><tr><th>System</th><th>N</th><th>Fréchet ↓</th><th>KAD ↓</th><th>Diversity</th><th>Candidate→ref ↓</th><th>Ref→candidate ↓</th><th>Precision</th><th>Recall</th></tr></thead><tbody>" + "".join(rows) + "</tbody></table>"
 
     sections = [f"<section><h2>All samples</h2>{table(result['comparisons'])}</section>"]
     for dimension, values in result["strata"].items():

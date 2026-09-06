@@ -144,6 +144,59 @@ def _mean_pairwise_distance(values: NDArray[np.float64]) -> float:
     return float(upper.mean()) if upper.size else 0.0
 
 
+def _squared_euclidean_distances(
+    left: NDArray[np.float64], right: NDArray[np.float64]
+) -> NDArray[np.float64]:
+    left_norms = np.sum(left * left, axis=1, keepdims=True)
+    right_norms = np.sum(right * right, axis=1, keepdims=True).T
+    return np.asarray(
+        np.maximum(left_norms + right_norms - 2.0 * left @ right.T, 0.0),
+        dtype=np.float64,
+    )
+
+
+def _median_pairwise_euclidean_distance(values: NDArray[np.float64]) -> float:
+    squared = _squared_euclidean_distances(values, values)
+    upper = squared[np.triu_indices(len(values), k=1)]
+    return float(np.median(np.sqrt(upper)))
+
+
+def _kernel_audio_distance(
+    candidate: NDArray[np.float64],
+    reference: NDArray[np.float64],
+    *,
+    scale: float = 100.0,
+) -> tuple[float, float]:
+    """Return KAD and its reference-derived Gaussian-kernel bandwidth.
+
+    This follows the finite-sample estimator in the official ``kadtk``
+    implementation: the median Euclidean distance inside the reference set is
+    used as the bandwidth, the within-set diagonals are excluded, and the
+    unbiased MMD estimate is multiplied by 100. The estimate is intentionally
+    not clipped at zero; small negative values are possible for finite samples.
+    """
+
+    bandwidth = _median_pairwise_euclidean_distance(reference)
+    gamma = 1.0 / (2.0 * bandwidth * bandwidth + 1e-8)
+
+    def kernel(left: NDArray[np.float64], right: NDArray[np.float64]) -> NDArray[np.float64]:
+        return np.exp(-gamma * _squared_euclidean_distances(left, right))
+
+    candidate_kernel = kernel(candidate, candidate)
+    reference_kernel = kernel(reference, reference)
+    cross_kernel = kernel(candidate, reference)
+    candidate_mean = float(
+        (candidate_kernel.sum() - np.trace(candidate_kernel))
+        / (len(candidate) * (len(candidate) - 1))
+    )
+    reference_mean = float(
+        (reference_kernel.sum() - np.trace(reference_kernel))
+        / (len(reference) * (len(reference) - 1))
+    )
+    score = scale * (candidate_mean + reference_mean - 2.0 * float(cross_kernel.mean()))
+    return score, bandwidth
+
+
 def _manifold_metrics(
     candidate: NDArray[np.float64], reference: NDArray[np.float64], neighbors: int
 ) -> dict[str, float] | None:
@@ -173,10 +226,13 @@ def _compare_arrays(
     cross = _cosine_distances(candidate, reference)
     candidate_nearest = cross.min(axis=1)
     reference_nearest = cross.min(axis=0)
+    kernel_audio_distance, kernel_bandwidth = _kernel_audio_distance(candidate, reference)
     return {
         "candidate_samples": len(candidate),
         "reference_samples": len(reference),
         "frechet_embedding_distance": _frechet_distance(candidate, reference),
+        "kernel_audio_distance": kernel_audio_distance,
+        "kernel_audio_distance_bandwidth": kernel_bandwidth,
         "candidate_diversity_mean_cosine_distance": _mean_pairwise_distance(candidate),
         "reference_diversity_mean_cosine_distance": _mean_pairwise_distance(reference),
         "candidate_to_reference_nearest": {
@@ -257,6 +313,11 @@ def compare_embedding_distributions(
             "manifold": (
                 "Precision, recall, density, and coverage are omitted when either side "
                 "has at most k samples."
+            ),
+            "kad": (
+                "Unbiased finite-sample Gaussian-kernel MMD scaled by 100, following "
+                "kadtk. The bandwidth is the median pairwise Euclidean distance in the "
+                "reference set, so direction matters and small negative estimates are valid."
             ),
         },
     }
