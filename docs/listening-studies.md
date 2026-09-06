@@ -20,8 +20,8 @@ absolute score.
   to silently delete a rater. State any exclusion policy before collecting data.
 
 The public package and organizer key are deliberately separated. The public
-`study.json` contains only anonymous trial IDs, prompt text, and hashed audio
-paths. Labels remain private as well because a careless `model` or `backend`
+`study.json` contains the title, the criteria and their definitions, anonymous
+trial IDs, prompt text, and hashed audio paths. Labels remain private as well because a careless `model` or `backend`
 label could disclose identity. The sibling `.organizer.json` file maps A/B
 positions to systems, retains labels for later stratification, and identifies
 repeated source cases. Analysis requires the private key.

@@ -63,8 +63,9 @@ Appendix B):
   {1, 5, 10, 25, 50, 100, 200, 500, 1000, 2000, 2500} unique prompts.
 
 `prepare-fidelity-perturbations` reproduces the first ladder exactly (its
-default sigmas are that list); the other three need MIDI rendering, a
-generator and a prompt corpus and are not bundled.
+default sigmas are that list; `--sigmas` sets another increasing list); the
+other three need MIDI rendering, a generator and a prompt corpus and are not
+bundled.
 
 Reproducing those headline results also requires the named corpora, generator,
 embedding backbone, layer, pooling rule, reference distribution, and 5,000
