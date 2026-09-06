@@ -108,3 +108,37 @@ def test_listening_study_cli_builds_and_analyzes(tmp_path, write_wav):
     assert (report / "report.json").is_file()
     assert (report / "report.md").is_file()
     assert (report / "report.html").is_file()
+
+
+def test_distribution_cli_writes_reports(tmp_path):
+    manifest = tmp_path / "embeddings.jsonl"
+    rows = []
+    for system in ("reference", "candidate"):
+        for index, embedding in enumerate(([1.0, 0.0], [0.0, 1.0])):
+            rows.append(
+                {
+                    "id": f"{system}-{index}",
+                    "system": system,
+                    "embedding": embedding,
+                    "embedding_model": "fixture",
+                    "checkpoint": "v1",
+                    "labels": {"genre": "test"},
+                }
+            )
+    manifest.write_text("".join(json.dumps(row) + "\n" for row in rows))
+    output = tmp_path / "distribution-report"
+
+    assert main(
+        [
+            "compare-distributions",
+            str(manifest),
+            "--reference-system",
+            "reference",
+            "--output",
+            str(output),
+        ]
+    ) == 0
+    result = json.loads((output / "report.json").read_text())
+    assert result["comparisons"]["candidate"]["frechet_embedding_distance"] == 0
+    assert (output / "report.md").is_file()
+    assert (output / "report.html").is_file()

@@ -6,6 +6,8 @@ import math
 import sys
 from pathlib import Path
 
+from music_eval.distribution import compare_embedding_distributions, load_embedding_manifest
+from music_eval.distribution_report import write_distribution_report
 from music_eval.evaluator import ensure_output_directory, evaluate_manifest
 from music_eval.listening import (
     DEFAULT_CRITERIA,
@@ -77,6 +79,14 @@ def build_parser() -> argparse.ArgumentParser:
     analyze.add_argument("organizer_key", type=Path)
     analyze.add_argument("responses", type=Path, nargs="+")
     analyze.add_argument("--output", type=Path, default=Path("listening-report"))
+
+    distribution = subparsers.add_parser(
+        "compare-distributions", help="compare systems in a shared audio embedding space"
+    )
+    distribution.add_argument("manifest", type=Path)
+    distribution.add_argument("--reference-system", required=True)
+    distribution.add_argument("--neighbors", type=int, default=3)
+    distribution.add_argument("--output", type=Path, default=Path("distribution-report"))
     return parser
 
 
@@ -179,6 +189,21 @@ def _analyze_listening_study(args: argparse.Namespace) -> int:
     return 0
 
 
+def _compare_distributions(args: argparse.Namespace) -> int:
+    result = compare_embedding_distributions(
+        load_embedding_manifest(args.manifest),
+        args.reference_system,
+        neighbors=args.neighbors,
+    )
+    write_distribution_report(result, args.output)
+    print(
+        f"compared {len(result['comparisons'])} system(s) against {result['reference_system']}"
+    )
+    print(f"reports: {args.output / 'report.json'}, {args.output / 'report.md'}, and "
+          f"{args.output / 'report.html'}")
+    return 0
+
+
 def main(argv: list[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
     try:
@@ -195,6 +220,8 @@ def main(argv: list[str] | None = None) -> int:
             return 0
         if args.command == "analyze-listening-study":
             return _analyze_listening_study(args)
+        if args.command == "compare-distributions":
+            return _compare_distributions(args)
         if args.command == "list-metrics":
             print("\n".join(available_plugins()))
             return 0

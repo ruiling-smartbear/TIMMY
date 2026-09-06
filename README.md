@@ -226,6 +226,35 @@ Bradley–Terry strength, and repeat-trial agreement. See
 [Blind listening studies](docs/listening-studies.md) for design and sampling
 requirements.
 
+## Corpus-level distribution comparison
+
+Per-track scores can miss mode collapse: a model may produce several polished
+tracks while covering only a narrow part of the requested music distribution.
+`compare-distributions` consumes a JSONL file of precomputed audio embeddings
+from one pinned model/checkpoint:
+
+```json
+{"id":"ref-rock-01","system":"reference","embedding":[0.12,-0.41,0.08],"embedding_model":"my-audio-encoder","checkpoint":"sha256:...","labels":{"genre":"rock"}}
+```
+
+```bash
+music-eval compare-distributions embeddings.jsonl \
+  --reference-system reference --neighbors 3 \
+  --output distribution-report
+```
+
+For every candidate system, reports include Fréchet distance in the declared
+embedding space, within-system cosine diversity, nearest-reference distances,
+and k-NN precision/recall/density/coverage when the sample count is sufficient.
+The same comparison is repeated by genre and every other supplied label when
+both sides have at least two examples.
+
+The command intentionally accepts embeddings rather than silently choosing or
+downloading an encoder. It rejects mixed checkpoints and dimensions. Its
+Fréchet result is **not automatically FAD**; that name is justified only when a
+specific audio embedding and preprocessing protocol defines it. See
+[Distribution evaluation](docs/distribution-evaluation.md).
+
 ## Grouped evidence
 
 Labels are multi-valued. One sample may belong to `genre=synthwave`,
@@ -252,6 +281,8 @@ exit code proves the gate catches the injected defect.
 - [Architecture](docs/architecture.md)
 - [Manifest contract](docs/manifest.md)
 - [Metric plugin API](docs/plugin-api.md)
+- [Blind listening studies](docs/listening-studies.md)
+- [Distribution evaluation](docs/distribution-evaluation.md)
 - [Contributing](CONTRIBUTING.md)
 
 ## Roadmap
@@ -260,8 +291,8 @@ exit code proves the gate catches the injected defect.
 2. Independent music-text alignment with MuQ-MuLan.
 3. Additional per-sample learned quality metrics such as MuQ-Eval.
 4. Higher-level beat, harmony, vocal, and section analysis.
-5. Corpus-level distribution metrics such as FAD/MAD.
-6. Model-serving adapters and multi-rater uncertainty intervals.
+5. Calibrated encoder adapters for named FAD/MAD protocols.
+6. Multi-rater uncertainty intervals and power-planning helpers.
 
 Each layer will remain visible and independently disableable. Learned metrics
 will report model/checkpoint identity and will not become aesthetic ground

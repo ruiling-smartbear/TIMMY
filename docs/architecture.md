@@ -26,6 +26,13 @@ Pairwise listening JSONL
     ├── seeded trial order and A/B assignment
     ├── public browser study ──→ validated response JSON
     └── private organizer key ──→ Bradley–Terry + reliability reports
+
+Embedding JSONL (one pinned space)
+    │
+    ├── provenance + dimension validation
+    ├── global candidate/reference distribution comparison
+    ├── label-stratified comparisons
+    └── JSON / Markdown / HTML corpus reports
 ```
 
 ## Core boundary
