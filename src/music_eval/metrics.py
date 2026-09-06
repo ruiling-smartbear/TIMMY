@@ -17,29 +17,48 @@ def dbfs(value: float, floor_db: float = -120.0) -> float:
     return max(floor_db, 20.0 * math.log10(value))
 
 
-def _mono_rms_windows(
-    samples: NDArray[np.float64], sample_rate: int, window_seconds: float
+def _mean_power(samples: NDArray[np.float64]) -> NDArray[np.float64]:
+    """Per-sample mean of the squared channels, accumulated one channel at a time.
+
+    Reducing a tall (frames, channels) array along axis 1 is several times slower
+    in numpy than summing a few contiguous columns.
+    """
+    power = np.zeros(samples.shape[0], dtype=np.float64)
+    for channel in range(samples.shape[1]):
+        column = samples[:, channel]
+        power += column * column
+    power /= max(1, samples.shape[1])
+    return power
+
+
+def _window_rms(
+    power: NDArray[np.float64], sample_rate: int, window_seconds: float
 ) -> tuple[NDArray[np.float64], int]:
-    mono = np.sqrt(np.mean(np.square(samples), axis=1))
+    """RMS of consecutive non-overlapping windows of the per-sample mean power.
+
+    The last window may be shorter than the others; its RMS covers only the
+    samples it has.
+    """
     window_frames = max(1, round(sample_rate * window_seconds))
-    if mono.size == 0:
+    if power.size == 0:
         return np.empty(0, dtype=np.float64), window_frames
-    rms_values = []
-    for start in range(0, mono.size, window_frames):
-        window = mono[start : start + window_frames]
-        rms_values.append(float(np.sqrt(np.mean(np.square(window)))))
-    return np.asarray(rms_values), window_frames
+    full = power.size // window_frames
+    means = power[: full * window_frames].reshape(full, window_frames).mean(axis=1)
+    if power.size % window_frames:
+        means = np.append(means, power[full * window_frames :].mean())
+    return np.sqrt(means), window_frames
 
 
 def _silent_windows(
-    samples: NDArray[np.float64],
+    power: NDArray[np.float64],
     sample_rate: int,
     window_seconds: float,
     silence_dbfs: float,
 ) -> tuple[NDArray[np.bool_], int]:
-    rms_values, window_frames = _mono_rms_windows(samples, sample_rate, window_seconds)
-    silent = [dbfs(float(value)) <= silence_dbfs for value in rms_values]
-    return np.asarray(silent, dtype=bool), window_frames
+    rms_values, window_frames = _window_rms(power, sample_rate, window_seconds)
+    with np.errstate(divide="ignore"):  # log10(0) is -inf, floored like dbfs()
+        rms_db = np.maximum(20.0 * np.log10(rms_values), -120.0)
+    return rms_db <= silence_dbfs, window_frames
 
 
 def _silent_runs(silent: NDArray[np.bool_]) -> list[tuple[int, int]]:
@@ -68,11 +87,12 @@ def detect_dropouts(
     # DROPOUT_FRAME_SECONDS frames and each boundary is then moved to the exact
     # sample by inspecting the partial frame on either side of the silent run, so
     # a dropout that straddles a window boundary is neither missed nor shortened.
+    power = _mean_power(samples)
     silent_windows, _window_frames = _silent_windows(
-        samples, sample_rate, window_seconds, silence_dbfs
+        power, sample_rate, window_seconds, silence_dbfs
     )
     silent_frames, frame_samples = _silent_windows(
-        samples, sample_rate, DROPOUT_FRAME_SECONDS, silence_dbfs
+        power, sample_rate, DROPOUT_FRAME_SECONDS, silence_dbfs
     )
     amplitude = 10.0 ** (silence_dbfs / 20.0)
     dropouts: list[Dropout] = []
