@@ -1,0 +1,1 @@
+{"id":"demo-01","prompt":"A clean sustained electronic tone","audio_a":"healthy.wav","system_a":"candidate-a","audio_b":"dropout.wav","system_b":"candidate-b","labels":{"genre":"electronic","condition":"dropout-control"}}

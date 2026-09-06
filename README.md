@@ -185,6 +185,47 @@ choices, so this plugin does not fail samples by default. LRA values from tracks
 shorter than 60 seconds are retained but explicitly marked unstable, following
 EBU guidance.
 
+## Human blind listening studies
+
+Objective metrics do not replace listening. The study builder creates a
+model-blind A/B experiment with deterministic randomization and hidden repeat
+trials for within-rater reliability. Start with a JSONL comparison manifest:
+
+```json
+{"id":"rock-01","prompt":"Raw garage rock with a memorable chorus","audio_a":"outputs/model-a-rock.wav","system_a":"model-a","audio_b":"outputs/model-b-rock.wav","system_b":"model-b","labels":{"genre":"rock"}}
+```
+
+Build and serve the study:
+
+```bash
+music-eval init-listening-study comparisons.jsonl \
+  --output listening-study --title "Model A vs Model B" \
+  --seed 20260906 --repeat-fraction 0.1
+music-eval serve-listening-study listening-study --port 8000
+```
+
+The public directory contains sanitized PCM audio under hashed names,
+randomized A/B positions, and a standalone browser interface. The builder does
+not copy system fields, labels, or repeat markers into it. Organizers must still
+keep their own title and prompt text neutral. The private answer key is written
+next to the directory as `listening-study.organizer.json`; never upload or
+serve it with the public study.
+
+Responses submitted through the local server appear under
+`listening-study/responses/`. Without a server, the page offers a response JSON
+download instead. Analyze one or more response files with:
+
+```bash
+music-eval analyze-listening-study listening-study.organizer.json \
+  listening-study/responses/*.json --output listening-report
+```
+
+The report keeps overall preference, prompt alignment, musicality/structure,
+and production quality separate. Each criterion includes raw preference rate,
+Bradley–Terry strength, and repeat-trial agreement. See
+[Blind listening studies](docs/listening-studies.md) for design and sampling
+requirements.
+
 ## Grouped evidence
 
 Labels are multi-valued. One sample may belong to `genre=synthwave`,
@@ -220,7 +261,7 @@ exit code proves the gate catches the injected defect.
 3. Additional per-sample learned quality metrics such as MuQ-Eval.
 4. Higher-level beat, harmony, vocal, and section analysis.
 5. Corpus-level distribution metrics such as FAD/MAD.
-6. A/B listening studies and model-serving adapters.
+6. Model-serving adapters and multi-rater uncertainty intervals.
 
 Each layer will remain visible and independently disableable. Learned metrics
 will report model/checkpoint identity and will not become aesthetic ground

@@ -1,0 +1,47 @@
+# ruff: noqa: E501
+from __future__ import annotations
+
+import json
+from pathlib import Path
+
+
+def write_listening_interface(public_study: dict[str, object], output: Path) -> None:
+    payload = json.dumps(public_study, ensure_ascii=False).replace("</", "<\\/")
+    output.write_text(_HTML.replace("__STUDY_DATA__", payload), encoding="utf-8")
+
+
+_HTML = r'''<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Blind listening room</title>
+<style>
+:root{--ink:#191812;--paper:#f2eddf;--card:#fbf8ef;--line:#25241d;--red:#df4b31;--lime:#d9ff5a;--muted:#716d61}
+*{box-sizing:border-box}body{margin:0;background:var(--paper);color:var(--ink);font-family:Menlo,"Courier New",monospace}
+body:before{content:"";position:fixed;inset:0;pointer-events:none;opacity:.14;background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 180 180' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.8' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='.22'/%3E%3C/svg%3E")}
+.shell{min-height:100vh;display:grid;grid-template-columns:220px 1fr}.rail{border-right:2px solid var(--line);padding:28px 20px;display:flex;flex-direction:column;position:sticky;top:0;height:100vh}
+.mark{font:italic 32px/1 "Iowan Old Style",Baskerville,serif}.eyebrow{text-transform:uppercase;letter-spacing:.14em;font-size:10px;color:var(--muted)}
+.progress{margin-top:48px}.track{height:5px;background:#d5cfc0;margin:10px 0}.fill{height:100%;background:var(--red);transition:width .35s}.count{font-size:12px}.privacy{margin-top:auto;font-size:10px;line-height:1.6;color:var(--muted)}
+main{padding:44px clamp(28px,6vw,92px) 70px;max-width:1240px;width:100%}.top{display:flex;justify-content:space-between;gap:30px;align-items:end}.top h1{font:56px/.92 "Iowan Old Style",Baskerville,serif;margin:8px 0 0;max-width:700px}.rater{display:grid;gap:7px;font-size:11px}.rater input{background:transparent;border:0;border-bottom:2px solid var(--line);padding:8px 2px;font:inherit;width:210px;outline:0}
+.prompt{font:italic clamp(26px,3.2vw,43px)/1.12 "Iowan Old Style",Baskerville,serif;margin:52px 0 28px;padding-left:24px;border-left:8px solid var(--red);max-width:930px}
+.decks{display:grid;grid-template-columns:1fr 1fr;gap:20px}.deck{border:2px solid var(--line);background:var(--card);padding:22px;box-shadow:7px 7px 0 var(--line);position:relative;transition:transform .2s}.deck:hover{transform:translate(-2px,-2px)}.deck h2{font:42px/1 "Iowan Old Style",Baskerville,serif;margin:0 0 14px}.deck audio{width:100%;accent-color:var(--red)}
+.tag{position:absolute;right:15px;top:15px;background:var(--lime);border:1px solid var(--line);padding:5px 8px;font-size:9px;text-transform:uppercase}.ratings{margin-top:34px;border-top:2px solid var(--line)}.row{display:grid;grid-template-columns:minmax(190px,1fr) repeat(3,116px);align-items:center;border-bottom:1px solid #9f998b;min-height:64px}.criterion{text-transform:capitalize}.choice{display:flex;justify-content:center}.choice input{position:absolute;opacity:0}.choice label{cursor:pointer;border:1px solid var(--line);min-width:72px;text-align:center;padding:8px 10px;background:var(--card);transition:.15s}.choice input:checked+label{background:var(--ink);color:var(--paper);box-shadow:3px 3px 0 var(--red)}
+.note{margin-top:25px;width:100%;min-height:72px;border:1px solid var(--line);background:transparent;padding:12px;font:12px/1.5 inherit;resize:vertical}.actions{display:flex;justify-content:space-between;align-items:center;margin-top:28px}.button{border:2px solid var(--line);background:var(--card);padding:13px 20px;font:500 12px inherit;cursor:pointer}.button.primary{background:var(--red);color:white;box-shadow:5px 5px 0 var(--line)}.button:disabled{opacity:.35;cursor:not-allowed}.status{font-size:11px;color:var(--muted)}
+.done{display:none;max-width:700px;margin-top:80px}.done h2{font:64px/.9 "Iowan Old Style",Baskerville,serif;margin:0 0 24px}.done.show{display:block}.hide{display:none!important}
+@media(max-width:760px){.shell{display:block}.rail{height:auto;position:relative;border-right:0;border-bottom:2px solid var(--line);display:block}.privacy{display:none}.progress{margin-top:18px}.top{display:block}.rater{margin-top:26px}.top h1{font-size:44px}.decks{grid-template-columns:1fr}.row{grid-template-columns:1fr repeat(3,1fr);padding:12px 0;gap:4px}.criterion{grid-column:1/-1;margin-bottom:6px}.choice label{min-width:0;width:100%;padding:8px 3px}}
+</style>
+</head>
+<body><div class="shell"><aside class="rail"><div class="eyebrow">music-eval / 01</div><div class="mark">Listening<br>Room</div><div class="progress"><div class="eyebrow">progress</div><div class="track"><div class="fill" id="fill"></div></div><div class="count" id="count"></div></div><div class="privacy">Model-blind by construction.<br>System identities are held in a separate organizer key.</div></aside>
+<main><section id="session"><div class="top"><div><div class="eyebrow">pairwise human evaluation</div><h1 id="title"></h1></div><label class="rater">RATER CODE<input id="rater" autocomplete="off" maxlength="100" placeholder="e.g. listener-07"></label></div><div class="prompt" id="prompt"></div><div class="decks"><article class="deck"><span class="tag">anonymous</span><h2>Sample A</h2><audio id="audioA" controls preload="metadata"></audio></article><article class="deck"><span class="tag">anonymous</span><h2>Sample B</h2><audio id="audioB" controls preload="metadata"></audio></article></div><div class="ratings" id="ratings"></div><textarea class="note" id="note" placeholder="Optional observation — artifacts, structure, vocals, mix…"></textarea><div class="actions"><button class="button" id="back">← Back</button><span class="status" id="status">Choose one answer in every row.</span><button class="button primary" id="next">Next pair →</button></div></section>
+<section class="done" id="done"><div class="eyebrow">session complete</div><h2>Your ears did<br>the measuring.</h2><p id="doneStatus">Submitting responses…</p><button class="button primary" id="download">Download response JSON</button></section></main></div>
+<script id="study-data" type="application/json">__STUDY_DATA__</script><script>
+const study=JSON.parse(document.getElementById('study-data').textContent), answers={}, labels={overall_preference:'Overall preference',prompt_alignment:'Prompt alignment',musicality_structure:'Musicality & structure',production_quality:'Production quality'};let cursor=0,finalResponse=null;
+const $=id=>document.getElementById(id);$('title').textContent=study.title;
+function current(){return study.trials[cursor]} function stopAudio(){['audioA','audioB'].forEach(id=>{$(id).pause();$(id).currentTime=0})}
+function render(){stopAudio();const t=current();$('prompt').textContent='“'+t.prompt+'”';$('audioA').src=t.audio_a;$('audioB').src=t.audio_b;$('fill').style.width=((cursor/study.trials.length)*100)+'%';$('count').textContent=(cursor+1)+' / '+study.trials.length;$('back').disabled=cursor===0;$('next').textContent=cursor===study.trials.length-1?'Finish study →':'Next pair →';$('note').value=answers[t.id]?.note||'';
+ $('ratings').innerHTML=study.criteria.map(c=>`<div class="row"><div class="criterion">${labels[c]||c.replaceAll('_',' ')}</div>${['A','B','tie'].map(v=>`<div class="choice"><input type="radio" id="${c}-${v}" name="${c}" value="${v}" ${answers[t.id]?.ratings?.[c]===v?'checked':''}><label for="${c}-${v}">${v==='tie'?'Tie':v}</label></div>`).join('')}</div>`).join('');$('status').textContent='Choose one answer in every row.'}
+function save(){const ratings={};for(const c of study.criteria){const hit=document.querySelector(`input[name="${c}"]:checked`);if(!hit)return false;ratings[c]=hit.value}answers[current().id]={trial_id:current().id,ratings,note:$('note').value};return true}
+function payload(){return{schema_version:1,study_id:study.study_id,rater_id:$('rater').value.trim(),submitted_at:new Date().toISOString(),answers:study.trials.map(t=>answers[t.id])}}
+async function finish(){if(!$('rater').value.trim()){ $('status').textContent='Enter a rater code before finishing.';return}$('session').classList.add('hide');$('done').classList.add('show');$('fill').style.width='100%';finalResponse=payload();try{const r=await fetch('/submit',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(finalResponse)});if(!r.ok)throw Error();$('doneStatus').textContent='Response saved by the study server.'}catch(e){$('doneStatus').textContent='No study server detected. Download the response file and send it to the organizer.'}}
+$('next').onclick=()=>{if(!save()){$('status').textContent='One or more criteria still need an answer.';return}if(cursor<study.trials.length-1){cursor++;render()}else finish()};$('back').onclick=()=>{save();if(cursor){cursor--;render()}};$('download').onclick=()=>{const blob=new Blob([JSON.stringify(finalResponse,null,2)+'\n'],{type:'application/json'}),a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=`response-${study.study_id.slice(0,8)}.json`;a.click();URL.revokeObjectURL(a.href)};render();
+</script></body></html>'''

@@ -1,11 +1,21 @@
 from __future__ import annotations
 
 import argparse
+import json
 import math
 import sys
 from pathlib import Path
 
 from music_eval.evaluator import ensure_output_directory, evaluate_manifest
+from music_eval.listening import (
+    DEFAULT_CRITERIA,
+    analyze_listening_responses,
+    build_listening_study,
+    load_comparisons,
+)
+from music_eval.listening_report import write_listening_report
+from music_eval.listening_server import serve_study
+from music_eval.listening_web import write_listening_interface
 from music_eval.manifest import load_manifest
 from music_eval.plugins import AnalysisConfig, available_plugins, resolve_plugins
 from music_eval.report import write_reports
@@ -44,6 +54,29 @@ def build_parser() -> argparse.ArgumentParser:
     init_suite.add_argument("--sample-rate", type=int)
     init_suite.add_argument("--channels", type=int)
     init_suite.add_argument("--force", action="store_true", help="overwrite output")
+
+    init_study = subparsers.add_parser(
+        "init-listening-study", help="build an anonymous pairwise listening study"
+    )
+    init_study.add_argument("comparisons", type=Path)
+    init_study.add_argument("--output", type=Path, default=Path("listening-study"))
+    init_study.add_argument("--title", default="Generated music study")
+    init_study.add_argument("--seed", type=int, default=20260906)
+    init_study.add_argument("--repeat-fraction", type=float, default=0.1)
+    init_study.add_argument("--criteria", default=",".join(DEFAULT_CRITERIA))
+    init_study.add_argument("--force", action="store_true", help="overwrite output")
+
+    serve = subparsers.add_parser("serve-listening-study", help="serve and collect responses")
+    serve.add_argument("directory", type=Path)
+    serve.add_argument("--host", default="127.0.0.1")
+    serve.add_argument("--port", type=int, default=8000)
+
+    analyze = subparsers.add_parser(
+        "analyze-listening-study", help="rank systems from listening responses"
+    )
+    analyze.add_argument("organizer_key", type=Path)
+    analyze.add_argument("responses", type=Path, nargs="+")
+    analyze.add_argument("--output", type=Path, default=Path("listening-report"))
     return parser
 
 
@@ -115,6 +148,37 @@ def _init_suite(args: argparse.Namespace) -> int:
     return 0
 
 
+def _init_listening_study(args: argparse.Namespace) -> int:
+    if not math.isfinite(args.repeat_fraction):
+        raise ValueError("--repeat-fraction must be finite")
+    criteria = tuple(part.strip() for part in args.criteria.split(",") if part.strip())
+    public_path, key_path, trial_count = build_listening_study(
+        load_comparisons(args.comparisons),
+        args.output,
+        title=args.title,
+        seed=args.seed,
+        repeat_fraction=args.repeat_fraction,
+        criteria=criteria,
+        overwrite=args.force,
+    )
+    public = json.loads(public_path.read_text())
+    write_listening_interface(public, args.output / "index.html")
+    print(f"wrote {trial_count} anonymous trials to {args.output}")
+    print(f"organizer key (keep private): {key_path}")
+    return 0
+
+
+def _analyze_listening_study(args: argparse.Namespace) -> int:
+    key = json.loads(args.organizer_key.read_text())
+    responses = [json.loads(path.read_text()) for path in args.responses]
+    result = analyze_listening_responses(key, responses)
+    write_listening_report(result, args.output)
+    print(f"analyzed {result['raters']} rater(s) across {len(result['systems'])} systems")
+    print(f"reports: {args.output / 'report.json'}, {args.output / 'report.md'}, and "
+          f"{args.output / 'report.html'}")
+    return 0
+
+
 def main(argv: list[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
     try:
@@ -122,6 +186,15 @@ def main(argv: list[str] | None = None) -> int:
             return _evaluate(args)
         if args.command == "init-suite":
             return _init_suite(args)
+        if args.command == "init-listening-study":
+            return _init_listening_study(args)
+        if args.command == "serve-listening-study":
+            if not 0 <= args.port <= 65535:
+                raise ValueError("--port must be between 0 and 65535")
+            serve_study(args.directory, args.host, args.port)
+            return 0
+        if args.command == "analyze-listening-study":
+            return _analyze_listening_study(args)
         if args.command == "list-metrics":
             print("\n".join(available_plugins()))
             return 0

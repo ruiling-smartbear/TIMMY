@@ -19,6 +19,13 @@ JSONL manifest
     ├── arbitrary label-dimension aggregation
     │
     └── JSON / Markdown / HTML reports
+
+Pairwise listening JSONL
+    │
+    ├── PCM rewrite + anonymous content-hash filenames
+    ├── seeded trial order and A/B assignment
+    ├── public browser study ──→ validated response JSON
+    └── private organizer key ──→ Bradley–Terry + reliability reports
 ```
 
 ## Core boundary
@@ -27,6 +34,12 @@ The core owns strict manifest parsing, PCM WAV decoding, plugin discovery and
 isolation, finding severity, grouping, exit policy, and report schemas. It does
 not own model serving, checkpoint downloads, large embedding models, or an
 overall music-quality score. Those belong in optional adapters and plugins.
+
+The human-listening path is a parallel subsystem rather than a metric plugin.
+Its public study package and private organizer key are separate artifacts so
+the page cannot decode system identities. The response collector can validate
+answers using public trial IDs and criteria, but only offline analysis receives
+the organizer key.
 
 ## Evidence and policy
 
