@@ -10,7 +10,7 @@ evaluation case.
 | `id` | yes | Unique, nonempty case identifier |
 | `audio` | yes | Candidate WAV path (PCM 8-32 bit or IEEE float 32/64 bit, plain or extensible), relative to the manifest |
 | `prompt` | no | Generation prompt |
-| `negative_prompts` | no | Hard negatives for future alignment plugins |
+| `negative_prompts` | no | Hard-negative prompts scored by the alignment plugins |
 | `seed` | no | Integer generation seed |
 | `reference` | no | Aligned reference WAV path |
 | `labels` | no | Arbitrary dimensions mapped to one or more values |

@@ -8,7 +8,7 @@ perceptual metric.
 
 | Layer | Evidence | Result | Remaining limitation |
 | --- | --- | --- | --- |
-| base Python package | full pytest suite, strict mypy, ruff, diff whitespace check | pass | macOS/Python 3.13 local environment only |
+| base Python package | full pytest suite, strict mypy, ruff on Ubuntu, Python 3.10 to 3.13 (GitHub Actions) and locally | pass | no Windows or macOS runner in CI |
 | documentation topology | every relative Markdown link resolves | pass | does not test rendered layout in every client |
 | external citations | HTTP audit of every unique URL in README/docs | pass after replacing retired librosa URLs and removing a dead LeVo repository link | servers may later move or block automated requests |
 | KAD implementation | compared TIMMY NumPy result with official `kadtk` commit `8bda71d87f55cc7f8a8e38d3d4cfbae902ff78b1` on the same synthetic embeddings | `-20.9491786502` vs `-20.9491844177`; absolute delta `5.77e-06` | validates statistic implementation, not a named audio encoder campaign |
@@ -16,6 +16,9 @@ perceptual metric.
 | MuseCPEval adapter | real `music-eval evaluate` identity-pair run against MuseCPEval 0.3.0 | all five facet groups returned; adapter report passed; structural subprocess left no source-side artifacts after input isolation | synthetic pure tone is a wiring smoke test, not editing validity |
 | MuseCPEval edge behavior | short pure tone produced empty-beat/segment warnings and timbre numerical warnings | warnings observed; output remained finite; TIMMY rejects non-finite values | real musical edits are still required for research qualification |
 | learned checkpoints | dependency-injected unit tests for Audiobox, CLAP and MuQ-MuLan adapters | pass | pinned real-checkpoint dataset campaigns have not yet been run in this record |
+| production_quality | real pyloudnorm 0.2.0 and scipy 1.17.1 run on the demo tones and on the five MiniMax Music 3 reference takes (examples/minimax-music3) | pass; values in the committed report | loudness figures are not compared against a reference meter |
+| dropout detection | sample-accurate boundaries checked at five off-grid offsets and against a -40 dBFS quiet passage | pass | thresholds are the -50 dBFS / 10 ms defaults only |
+| WAV reader | hand-built PCM 8/16/24/32, float 32/64, extensible, LIST/fact/PEAK chunks, truncated and unsupported files | pass | no RF64 or compressed formats |
 | long-form experiment design | manifest invariant tests over matched prompt/seed duration ladders | pass | no generator outputs or human structure ratings have been collected |
 
 ## Test interpretation

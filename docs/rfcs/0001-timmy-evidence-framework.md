@@ -136,3 +136,6 @@ pinned example protocol, not vendor the evaluation framework into serving.
 - Should region-aware editing be a TIMMY-native protocol around MuseCPEval or an
   upstream contribution to that project?
 - Which long-form boundaries should be listener-calibrated by genre and duration?
+
+The working notes this RFC was distilled from are in
+[research/report-source.md](../research/report-source.md).

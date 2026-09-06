@@ -10,7 +10,7 @@ does not count as model support.
 | LAION CLAP HTSAT unfused | integrated | prompt/audio alignment and hard-negative rank | `music-eval[clap]` | source is CC0; verify the selected checkpoint and training-data terms separately |
 | OpenMuQ MuQ-MuLan-large | integrated | music-specific prompt/audio alignment and hard-negative rank | `music-eval[muq]` | weights are CC-BY-NC 4.0 |
 | MuseCPEval 0.3.0 | integrated | edit-context preservation across harmony, rhythm, structure, melody and timbre | `music-eval[editing]` | MIT; structure pulls the separate `msaf` dependency stack |
-| MuQ-Eval | planned | learned music-quality estimate | none | no adapter is shipped yet |
+| SongEval-style song-quality predictor | planned | learned overall song-quality estimate | none | no adapter is shipped yet |
 | KAD statistic | integrated | corpus-level kernel distance | user-provided embeddings only | encoder/checkpoint/reference define the protocol |
 | FAD embedding backend | planned | named corpus-level distribution distance | user-provided embeddings only | no named encoder adapter is bundled yet |
 | Suno / Udio | not bundled | systems under evaluation | export WAV files into the manifest | proprietary generators, not evaluator checkpoints |

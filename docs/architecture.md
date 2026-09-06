@@ -8,9 +8,10 @@ JSONL manifest
     ├── candidate/reference WAV decoding
     │
     ├── metric plugins
-    │     ├── integrity
-    │     ├── pairwise
-    │     └── learned: Audiobox Aesthetics, CLAP, MuQ-MuLan
+    │     ├── integrity, pairwise
+    │     ├── temporal_consistency, production_quality
+    │     ├── learned: audiobox_aesthetics, clap_alignment, muq_mulan_alignment
+    │     └── musecp_preservation (edit context)
     │
     ├── explicit expectation gates
     │
@@ -33,11 +34,16 @@ Embedding JSONL (one pinned space)
     ├── global candidate/reference distribution comparison
     ├── label-stratified comparisons
     └── JSON / Markdown / HTML corpus reports
+
+Metric scores at ordered perturbation levels
+    │
+    ├── prepare-fidelity-perturbations: Gaussian-noise ladder + provenance
+    └── analyze-metric-ordering: Kendall tau-b, ordered pairs, ties
 ```
 
 ## Core boundary
 
-The core owns strict manifest parsing, PCM WAV decoding, plugin discovery and
+The core owns strict manifest parsing, WAV decoding (PCM and IEEE float), plugin discovery and
 isolation, finding severity, grouping, exit policy, and report schemas. It does
 not own model serving, checkpoint downloads, large embedding models, or an
 overall music-quality score. Those belong in optional adapters and plugins.
@@ -61,20 +67,21 @@ dropout regressions.
 
 ## Metric namespaces
 
-Every plugin owns one namespace in `result.metrics`:
+A plugin returns a flat dictionary; the evaluator stores it under the plugin's
+`name`, so every plugin owns one namespace in `result.metrics`:
 
 ```json
 {
   "metrics": {
     "integrity": {"duration_seconds": 16.0},
     "pairwise": {"reference_pcm_exact": true},
-    "clap": {"positive_margin": 0.23}
+    "clap_alignment": {"track": {"positive_similarity": 0.41, "margin": 0.23}}
   }
 }
 ```
 
-Namespacing prevents unrelated plugins from overwriting fields. Findings also
-carry their plugin source.
+Two plugins cannot overwrite each other's fields, and findings carry their
+plugin source.
 
 ## Failure isolation
 
