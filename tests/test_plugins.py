@@ -50,6 +50,7 @@ def test_builtin_plugins_are_discoverable():
         "clap_alignment",
         "integrity",
         "pairwise",
+        "production_quality",
         "temporal_consistency",
     } <= set(available_plugins())
 

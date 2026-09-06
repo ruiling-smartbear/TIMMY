@@ -161,6 +161,30 @@ Near-duplicate ratios are deliberately not failures: repeated choruses,
 minimalism, drones, and genuine generation collapse can produce similar signal
 patterns. Genre-aware policy and listening evidence must interpret the result.
 
+### `production_quality` (optional)
+
+This layer measures delivery and mastering evidence separately from musical
+taste:
+
+- BS.1770-4 integrated loudness and EBU loudness range via `pyloudnorm`;
+- sample peak, crest factor, 400 ms block-level dynamics, and per-channel peak;
+- a clearly labeled 4× polyphase true-peak estimate;
+- spectral rolloff and energy above 15/18/20 kHz;
+- possible click/pop locations found from robust sample discontinuities.
+
+```bash
+python -m pip install -e '.[production]'
+music-eval evaluate manifest.jsonl \
+  --metrics integrity,production_quality \
+  --output report
+```
+
+The true-peak result is diagnostic and is not represented as a certified EBU
+meter. Click candidates and restricted bandwidth can be intentional musical
+choices, so this plugin does not fail samples by default. LRA values from tracks
+shorter than 60 seconds are retained but explicitly marked unstable, following
+EBU guidance.
+
 ## Grouped evidence
 
 Labels are multi-valued. One sample may belong to `genre=synthwave`,

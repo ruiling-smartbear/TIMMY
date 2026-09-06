@@ -63,3 +63,9 @@ features, transition distributions, first-to-last drift, non-local repetition,
 and ending evidence. It intentionally produces no findings: a repeated chorus
 and a collapsed generation can look alike at this level, so downstream policy
 must use genre applicability and human or higher-level structural evidence.
+
+`production_quality` is installed with `music-eval[production]`. It uses
+`pyloudnorm` for BS.1770-4 integrated loudness and EBU loudness range, while
+SciPy provides spectral density and a 4× polyphase true-peak estimate. The
+estimate is labeled as non-certified. Loudness, bandwidth, dynamic range, and
+impulsive discontinuity candidates remain evidence rather than implicit gates.

@@ -81,3 +81,20 @@ def test_grouped_summary_includes_temporal_evidence():
 
     assert groups["genre"]["j-pop"]["mean_first_to_last_spectral_similarity"] == 0.65
     assert groups["genre"]["j-pop"]["mean_near_duplicate_window_ratio"] == 0.25
+
+
+def test_grouped_summary_includes_production_evidence():
+    result = _result("j1", "pass", "j-pop", -18.0)
+    result.metrics["production_quality"] = {
+        "loudness": {
+            "integrated_lufs": -14.0,
+            "loudness_range_lu": 5.0,
+            "estimated_true_peak_dbtp": -1.0,
+        }
+    }
+
+    groups = grouped_summary([result])
+
+    assert groups["genre"]["j-pop"]["mean_integrated_lufs"] == -14.0
+    assert groups["genre"]["j-pop"]["mean_loudness_range_lu"] == 5.0
+    assert groups["genre"]["j-pop"]["mean_estimated_true_peak_dbtp"] == -1.0

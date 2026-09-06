@@ -124,6 +124,26 @@ def grouped_summary(
                         temporal_values.append(float(temporal_value))
                 if temporal_values:
                     group[output_name] = fmean(temporal_values)
+            for source_name, output_name in (
+                ("integrated_lufs", "mean_integrated_lufs"),
+                ("loudness_range_lu", "mean_loudness_range_lu"),
+                ("estimated_true_peak_dbtp", "mean_estimated_true_peak_dbtp"),
+            ):
+                production_values = []
+                for result in members:
+                    production = result.metrics.get("production_quality")
+                    if not isinstance(production, dict):
+                        continue
+                    loudness = production.get("loudness")
+                    if not isinstance(loudness, dict):
+                        continue
+                    production_value = loudness.get(source_name)
+                    if isinstance(production_value, (int, float)) and not isinstance(
+                        production_value, bool
+                    ):
+                        production_values.append(float(production_value))
+                if production_values:
+                    group[output_name] = fmean(production_values)
             groups[dimension][value] = group
     return groups
 

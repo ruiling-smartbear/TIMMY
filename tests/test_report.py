@@ -30,6 +30,13 @@ def test_reports_surface_optional_learned_metrics(tmp_path):
                 "first_to_last": {"spectral_similarity": 0.65},
                 "nonlocal_repetition": {"near_duplicate_window_ratio": 0.25},
             },
+            "production_quality": {
+                "loudness": {
+                    "integrated_lufs": -14.0,
+                    "loudness_range_lu": 5.0,
+                    "estimated_true_peak_dbtp": -1.0,
+                }
+            },
         },
     )
     markdown = tmp_path / "report.md"
@@ -40,11 +47,16 @@ def test_reports_surface_optional_learned_metrics(tmp_path):
 
     markdown_text = markdown.read_text()
     html_text = html.read_text()
-    assert "| CE | CU | PC | PQ | CLAP+ | Margin | Rank | First↔Last | Repeat |" in markdown_text
     assert (
-        "| 7.00 | 6.00 | 5.00 | 8.00 | 0.420 | 0.170 | 1 | 0.650 | 25.0% |"
+        "| CE | CU | PC | PQ | CLAP+ | Margin | Rank | First↔Last | Repeat | "
+        "LUFS | LRA | Est. dBTP |" in markdown_text
+    )
+    assert (
+        "| 7.00 | 6.00 | 5.00 | 8.00 | 0.420 | 0.170 | 1 | 0.650 | 25.0% | "
+        "-14.00 | 5.00 | -1.00 |"
         in markdown_text
     )
     assert "<th>CE</th>" in html_text
     assert "<th>CLAP+</th>" in html_text
     assert "<th>First↔Last</th>" in html_text
+    assert "<th>LUFS</th>" in html_text

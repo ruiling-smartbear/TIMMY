@@ -49,6 +49,14 @@ def _temporal(
     return values.get(key, default) if isinstance(values, dict) else default
 
 
+def _production(result: EvaluationResult, key: str, default: Any = "—") -> Any:
+    metrics = result.metrics.get("production_quality")
+    if not isinstance(metrics, dict):
+        return default
+    loudness = metrics.get("loudness")
+    return loudness.get(key, default) if isinstance(loudness, dict) else default
+
+
 def write_markdown_report(results: list[EvaluationResult], path: Path) -> None:
     payload = report_payload(results)
     summary = payload["summary"]
@@ -65,6 +73,9 @@ def write_markdown_report(results: list[EvaluationResult], path: Path) -> None:
     has_temporal = any("temporal_consistency" in result.metrics for result in results)
     temporal_headers = " First↔Last | Repeat |" if has_temporal else ""
     temporal_rules = "---:|---:|" if has_temporal else ""
+    has_production = any("production_quality" in result.metrics for result in results)
+    production_headers = " LUFS | LRA | Est. dBTP |" if has_production else ""
+    production_rules = "---:|---:|---:|" if has_production else ""
     lines = [
         "# Music evaluation report",
         "",
@@ -72,9 +83,10 @@ def write_markdown_report(results: list[EvaluationResult], path: Path) -> None:
         f"Warnings: **{summary['warnings']}** · Failed: **{summary['failed']}**",
         "",
         f"| ID | Genre | Status | Duration | RMS | Longest dropout |"
-        f"{aesthetic_headers}{clap_headers}{temporal_headers} Findings |",
+        f"{aesthetic_headers}{clap_headers}{temporal_headers}{production_headers}"
+        " Findings |",
         f"|---|---|---:|---:|---:|---:|{aesthetic_rules}{clap_rules}"
-        f"{temporal_rules}---|",
+        f"{temporal_rules}{production_rules}---|",
     ]
     for result in results:
         duration = _integrity(result, "duration_seconds")
@@ -111,12 +123,24 @@ def write_markdown_report(results: list[EvaluationResult], path: Path) -> None:
             )
         else:
             temporal_cells = ""
+        production_cells = (
+            "".join(
+                f" {value if value in ('—', None) else f'{float(value):.2f}'} |"
+                for value in (
+                    _production(result, "integrated_lufs"),
+                    _production(result, "loudness_range_lu"),
+                    _production(result, "estimated_true_peak_dbtp"),
+                )
+            )
+            if has_production
+            else ""
+        )
         lines.append(
             f"| {_cell(result.id)} | {_cell(genres)} | {result.status} | "
             f"{duration if duration == '—' else f'{float(duration):.3f}s'} | "
             f"{rms if rms == '—' else f'{float(rms):.2f} dBFS'} | "
             f"{longest if longest == '—' else f'{float(longest):.3f}s'} |"
-            f"{aesthetic_cells}{clap_cells}{temporal_cells} "
+            f"{aesthetic_cells}{clap_cells}{temporal_cells}{production_cells} "
             f"{_cell(findings)} |"
         )
 
@@ -163,6 +187,10 @@ def write_html_report(results: list[EvaluationResult], path: Path) -> None:
     clap_headers = "<th>CLAP+</th><th>Margin</th><th>Rank</th>" if has_clap else ""
     has_temporal = any("temporal_consistency" in result.metrics for result in results)
     temporal_headers = "<th>First↔Last</th><th>Repeat</th>" if has_temporal else ""
+    has_production = any("production_quality" in result.metrics for result in results)
+    production_headers = (
+        "<th>LUFS</th><th>LRA</th><th>Est. dBTP</th>" if has_production else ""
+    )
     sample_rows = []
     for result in results:
         findings = ", ".join(
@@ -190,6 +218,13 @@ def write_html_report(results: list[EvaluationResult], path: Path) -> None:
             )
         else:
             temporal_cells = ""
+        production_cells = (
+            f"<td>{_html_number(_production(result, 'integrated_lufs'), '')}</td>"
+            f"<td>{_html_number(_production(result, 'loudness_range_lu'), '')}</td>"
+            f"<td>{_html_number(_production(result, 'estimated_true_peak_dbtp'), '')}</td>"
+            if has_production
+            else ""
+        )
         sample_rows.append(
             "<tr>"
             f"<td><code>{escape(result.id)}</code></td>"
@@ -201,6 +236,7 @@ def write_html_report(results: list[EvaluationResult], path: Path) -> None:
             f"{aesthetic_cells}"
             f"{clap_cells}"
             f"{temporal_cells}"
+            f"{production_cells}"
             f"<td>{escape(findings)}</td>"
             "</tr>"
         )
@@ -259,7 +295,7 @@ No universal aesthetic score.</p>
 </div>
 <section><h2>Samples</h2><div class="table-wrap"><table><thead><tr><th>ID</th><th>Genre</th>
 <th>Status</th><th>Duration</th><th>RMS</th><th>Longest dropout</th>
-{aesthetic_headers}{clap_headers}{temporal_headers}<th>Findings</th>
+{aesthetic_headers}{clap_headers}{temporal_headers}{production_headers}<th>Findings</th>
 </tr></thead><tbody>{''.join(sample_rows)}</tbody></table></div></section>
 {''.join(group_sections)}
 </main></body></html>
