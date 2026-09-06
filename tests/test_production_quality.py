@@ -61,7 +61,7 @@ def test_production_quality_reports_loudness_dynamics_and_bandwidth():
     assert metrics["loudness"]["integrated_lufs"] == -14.0
     assert metrics["loudness"]["loudness_range_lu"] == 6.0
     assert metrics["loudness"]["loudness_range_stable"] is False
-    assert "before 60 seconds" in metrics["loudness"]["loudness_range_note"]
+    assert "under 60 s" in metrics["loudness"]["loudness_range_note"]
     assert metrics["loudness"]["estimated_true_peak_dbtp"] == metrics["loudness"][
         "sample_peak_dbfs"
     ]

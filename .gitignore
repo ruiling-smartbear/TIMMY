@@ -9,3 +9,4 @@ dist/
 demo-report/
 examples/*.wav
 examples/manifest.jsonl
+examples/minimax-music3/audio/

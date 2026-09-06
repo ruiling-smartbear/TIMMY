@@ -15,6 +15,9 @@ from music_eval.plugins.base import AnalysisConfig, MetricOutput
 from music_eval.text import package_version
 
 EPSILON = 1e-12
+# Tech 3342 gives no duration threshold, only a warning about very short
+# programmes; 60 s is this project's conservative cut for calling LRA stable.
+LRA_STABLE_SECONDS = 60.0
 TRUE_PEAK_OVERSAMPLE = 4
 CLICK_ABSOLUTE_DELTA = 0.5
 CLICK_MAD_MULTIPLIER = 30.0
@@ -251,12 +254,16 @@ class ProductionQualityMetric:
                     "loudness_range_lu": loudness_range_lu,
                     "loudness_range_stable": (
                         loudness_range_lu is not None
-                        and candidate.duration_seconds >= 60.0
+                        and candidate.duration_seconds >= LRA_STABLE_SECONDS
                     ),
                     "loudness_range_note": (
                         None
-                        if candidate.duration_seconds >= 60.0
-                        else "EBU guidance treats LRA as unstable before 60 seconds"
+                        if candidate.duration_seconds >= LRA_STABLE_SECONDS
+                        else (
+                            "LRA on short material is indicative only: EBU Tech 3342 "
+                            "notes that very short programmes can give misleadingly high "
+                            f"values; this report marks takes under {LRA_STABLE_SECONDS:.0f} s"
+                        )
                     ),
                     "unavailable_reason": loudness_reason,
                     "sample_peak_dbfs": _db(sample_peak),
